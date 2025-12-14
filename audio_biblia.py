@@ -1,33 +1,19 @@
-﻿import json
+import json
 import pyttsx3
-import sys
-
-sys.stdout.reconfigure(encoding='utf-8')
+from lector_biblia import cargar_biblia, obtener_versiculo
 
 engine = pyttsx3.init()
-engine.setProperty('rate', 160)
 
-def configurar_voz():
-    for v in engine.getProperty('voices'):
-        if 'spanish' in v.name.lower() or 'es' in v.id.lower():
-            engine.setProperty('voice', v.id)
-            break
+with open('config.json', 'r', encoding='utf-8') as f:
+    config = json.load(f)
 
-def cargar_biblia(path):
-    with open(path, encoding='utf-8') as f:
-        return json.load(f)
+biblia = cargar_biblia(config['data_path'])
 
-def leer_capitulo(data, cap):
-    chapters = data.get('chapters', {})
-    verses = chapters.get(str(cap))
-    if not verses:
-        print('Capítulo no disponible')
-        return
-    for v in sorted(verses, key=lambda x: int(x)):
-        engine.say(verses[v])
-    engine.runAndWait()
+texto = obtener_versiculo(
+    biblia,
+    config['last_chapter'],
+    config['last_verse']
+)
 
-if __name__ == '__main__':
-    configurar_voz()
-    data = cargar_biblia('data/biblia_es.json')
-    leer_capitulo(data, 1)
+engine.say(texto)
+engine.runAndWait()

@@ -1,16 +1,16 @@
-{
+﻿{
   "planes": [
     {
       "id": 1,
-      "nombre": "Biblia en un aÃ±o",
-      "descripcion": "Lee la Biblia completa en 365 dÃ­as",
+      "nombre": "Biblia en un aÃƒÂ±o",
+      "descripcion": "Lee la Biblia completa en 365 dÃƒÂ­as",
       "duracion": 365,
       "activo": false
     },
     {
       "id": 2,
-      "nombre": "Nuevo Testamento en 90 dÃ­as",
-      "descripcion": "EnfÃ³cate en el Nuevo Testamento",
+      "nombre": "Nuevo Testamento en 90 dÃƒÂ­as",
+      "descripcion": "EnfÃƒÂ³cate en el Nuevo Testamento",
       "duracion": 90,
       "activo": false
     },

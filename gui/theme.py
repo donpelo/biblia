@@ -1,0 +1,4 @@
+﻿BG_MAIN = "#F5F5DC"
+FG_TEXT = "#2B2B2B"
+BTN_BG = "#FFD700"
+FONT_MAIN = ("Segoe UI", 12)
