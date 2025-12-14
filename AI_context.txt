@@ -1,1 +1,26 @@
-Archivo de contexto inicial para AI
+﻿# AI Context - BibliaInteractiva
+Generado automáticamente el 2025-12-14 00:14:03
+
+## Hardware
+- CPU: Intel Core i5-13400F
+- GPU: NVIDIA RTX 4070
+- RAM: 32 GB
+- Almacenamiento: SSD/NVMe
+- Sistema operativo: Windows 10 IoT Enterprise LTSC
+
+## Proyecto
+BibliaInteractiva es una aplicación multiplataforma para estudio bíblico con:
+- Lectura interactiva de capítulos y versículos
+- Audio con voz sintética (pyttsx3)
+- Devocionales diarios
+- Planes de lectura
+- Interfaz gráfica (carpeta gui/)
+- Módulos de lógica (carpeta core/)
+- Scripts PowerShell para automatización
+
+## Estado actual
+- Repositorio sincronizado en GitHub
+- Archivos JSON corregidos y cargados
+- Módulos lector y audio ajustados para soportar "chapters" y filtrar metadata
+- Scripts de navegación y automatización listos
+- Contexto AI disponible para asistentes inteligentes
