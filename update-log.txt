@@ -9,3 +9,4 @@
 [2025-12-14 00:17:50] Commit realizado: Generación automática de AI_context.txt - 2025-12-14 00:17:50
 [2025-12-14 00:30:04] Instalación realizada en C:\Program Files\BibliaInteractiva
 [2025-12-14 00:30:36] Desinstalación realizada: carpeta y acceso directo eliminados
+[2025-12-14 00:31:03] Actualización automática realizada en C:\Program Files\BibliaInteractiva
