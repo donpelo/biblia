@@ -1,0 +1,11 @@
+﻿{
+  "book": "Ejemplo",
+  "metadata": {
+    "version": "RVR"
+  },
+  "chapters": {
+    "1": {
+      "1": "Texto de prueba"
+    }
+  }
+}

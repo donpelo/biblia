@@ -1,12 +1,4 @@
-{
-  "idioma": "es",
-  "version_biblia": "RV1858-es",
-  "velocidad_audio": 150,
-  "voz_audio": "auto",
-  "mostrar_numeros_versiculos": true,
-  "tema": "claro",
-  "available_versions": [
-    "RV1909-es",
-    "RV1858-es"
-  ]
+﻿{
+  "audio": true,
+  "version": "RVR"
 }
