@@ -1,0 +1,19 @@
+{
+    "plan_activo_id":  null,
+    "progresos":  {
+                      "1":  {
+                                "dias_completados":  0
+                            },
+                      "2":  {
+                                "dias_completados":  0
+                            },
+                      "3":  {
+                                "dias_completados":  0
+                            }
+                  },
+    "ultima_lectura":  {
+                           "libro":  "GÃƒÂ©nesis",
+                           "capitulo":  "1",
+                           "versiculo":  "1"
+                       }
+}

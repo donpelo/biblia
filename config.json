@@ -1,21 +1,12 @@
-﻿{
-    "project":  {
-                    "version":  "2.0.0",
-                    "name":  "Biblia Interactiva",
-                    "created":  "2025-12-13 20:55:38",
-                    "email":  "mrgelladuga@gmail.com",
-                    "author":  "Dsanti (donpelo)",
-                    "location":  "C:\\BibliaInteractiva"
-                },
-    "system":  {
-                   "installed_on":  "2025-12-13",
-                   "computer_name":  "DESKTOP-GUAO0SU",
-                   "windows_user":  "D´Santi Salvatore"
-               },
-    "github":  {
-                   "branch":  "main",
-                   "raw_base":  "https://raw.githubusercontent.com/donpelo/biblia/main",
-                   "user":  "donpelo",
-                   "repo":  "biblia"
-               }
+{
+  "idioma": "es",
+  "version_biblia": "RV1858-es",
+  "velocidad_audio": 150,
+  "voz_audio": "auto",
+  "mostrar_numeros_versiculos": true,
+  "tema": "claro",
+  "available_versions": [
+    "RV1909-es",
+    "RV1858-es"
+  ]
 }

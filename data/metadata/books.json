@@ -1,30 +1,20 @@
 ﻿[
     {
         "id": "GEN",
-        "name": "Génesis",
+        "name": "Genesis",
         "chapters": 50,
-        "testament": "AT",
-        "order": 1
+        "testament": "AT"
     },
     {
         "id": "EXO",
-        "name": "Éxodo",
+        "name": "Exodo",
         "chapters": 40,
-        "testament": "AT",
-        "order": 2
+        "testament": "AT"
     },
     {
         "id": "JHN",
         "name": "Juan",
         "chapters": 21,
-        "testament": "NT",
-        "order": 43
-    },
-    {
-        "id": "ROM",
-        "name": "Romanos",
-        "chapters": 16,
-        "testament": "NT",
-        "order": 45
+        "testament": "NT"
     }
 ]

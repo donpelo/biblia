@@ -1,0 +1,25 @@
+{
+  "planes": [
+    {
+      "id": 1,
+      "nombre": "Biblia en un aÃ±o",
+      "descripcion": "Lee la Biblia completa en 365 dÃ­as",
+      "duracion": 365,
+      "activo": false
+    },
+    {
+      "id": 2,
+      "nombre": "Nuevo Testamento en 90 dÃ­as",
+      "descripcion": "EnfÃ³cate en el Nuevo Testamento",
+      "duracion": 90,
+      "activo": false
+    },
+    {
+      "id": 3,
+      "nombre": "Salmos y Proverbios",
+      "descripcion": "Un mes en Salmos y Proverbios",
+      "duracion": 30,
+      "activo": false
+    }
+  ]
+}

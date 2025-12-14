@@ -1,0 +1,29 @@
+{
+  "antiguo_testamento": {
+    "GÃ©nesis": {
+      "1": {
+        "1": "En el principio creÃ³ Dios los cielos y la tierra.",
+        "2": "Y la tierra estaba desordenada y vacÃ­a; y las tinieblas estaban sobre la faz del abismo, y el EspÃ­ritu de Dios se movÃ­a sobre la faz de las aguas.",
+        "3": "Y dijo Dios: Sea la luz; y fue la luz."
+      },
+      "2": {
+        "1": "Fueron, pues, acabados los cielos y la tierra, y todo el ejÃ©rcito de ellos.",
+        "2": "Y acabÃ³ Dios en el dÃ­a sÃ©ptimo la obra que hizo; y reposÃ³ el dÃ­a sÃ©ptimo de toda la obra que hizo."
+      }
+    },
+    "Ã‰xodo": {
+      "1": {
+        "1": "Estos son los nombres de los hijos de Israel que entraron en Egipto con Jacob; cada uno entrÃ³ con su familia:",
+        "2": "RubÃ©n, SimeÃ³n, LevÃ­, JudÃ¡,"
+      }
+    }
+  },
+  "nuevo_testamento": {
+    "Juan": {
+      "3": {
+        "16": "Porque de tal manera amÃ³ Dios al mundo, que ha dado a su Hijo unigÃ©nito, para que todo aquel que en Ã©l cree no se pierda, mas tenga vida eterna.",
+        "17": "Porque no enviÃ³ Dios a su Hijo al mundo para condenar al mundo, sino para que el mundo sea salvo por Ã©l."
+      }
+    }
+  }
+}
