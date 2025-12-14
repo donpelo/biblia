@@ -1,10 +1,10 @@
-import os
-import json
-import pyttsx3
-from colorama import Fore
+import os, json, pyttsx3
+from colorama import init, Fore
+init(autoreset=True)
 
-BIBLIA_FILE = 'biblia.json'
-CONFIG_FILE = 'config.json'
+BASE = r'C:\\BibliaInteractiva'
+VERSIONS_DIR = os.path.join(BASE, 'data', 'versions')
+CONFIG_FILE = os.path.join(BASE, 'config.json')
 
 def _load_json(path, default=None):
     try:
@@ -13,126 +13,98 @@ def _load_json(path, default=None):
     except FileNotFoundError:
         return default
 
-def _tts_init():
-    try:
-        cfg = _load_json(CONFIG_FILE, default={})
-        engine = pyttsx3.init()
-        rate = cfg.get('velocidad_audio', 150)
-        engine.setProperty('rate', rate)
-        engine.setProperty('volume', 0.9)
-        desired = cfg.get('voz_audio', 'auto')
-        voices = engine.getProperty('voices')
-        selected = None
+def _save_json(path, data):
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+def _get_config():
+    cfg = _load_json(CONFIG_FILE, default={
+        'idioma':'es','version_biblia':'RV1909-es','velocidad_audio':150,
+        'voz_audio':'auto','mostrar_numeros_versiculos':True,'tema':'claro'
+    })
+    if cfg is None: cfg = {}
+    return cfg
+
+def _load_version(version_name):
+    file_path = os.path.join(VERSIONS_DIR, version_name + '.json')
+    if not os.path.exists(file_path): return None
+    with open(file_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+def _init_tts(cfg):
+    engine = pyttsx3.init()
+    # Configurar velocidad
+    rate = int(cfg.get('velocidad_audio', 150))
+    engine.setProperty('rate', rate)
+    # Seleccionar voz
+    preferred = cfg.get('voz_audio', 'auto')
+    voices = engine.getProperty('voices') or []
+    selected = None
+    if preferred != 'auto':
         for v in voices:
-            name = (v.name or '').lower()
-            # Algunas voces exponen language por atributo, no siempre
-            if desired == 'es' and ('spanish' in name or 'es_' in name):
+            if preferred.lower() in (v.name or '').lower() or preferred.lower() in (v.id or '').lower():
                 selected = v.id; break
-            if desired == 'en' and ('english' in name or 'en_' in name):
+    else:
+        # Intentar voz en español
+        for v in voices:
+            meta = (v.name or '') + ' ' + (v.id or '')
+            if any(tag in meta.lower() for tag in ['es', 'spanish', 'es-la', 'es-es']):
                 selected = v.id; break
-        if selected:
-            engine.setProperty('voice', selected)
-        return engine, cfg
-    except Exception as e:
-        print(Fore.RED + f'Error TTS: {e}')
-        return None, None
+    if selected: engine.setProperty('voice', selected)
+    return engine
+
+def _speak(engine, text):
+    engine.say(text)
+    engine.runAndWait()
 
 def menu_audio():
-    biblia = _load_json(BIBLIA_FILE, default=None)
+    cfg = _get_config()
+    version = cfg.get('version_biblia', 'RV1909-es')
+    biblia = _load_version(version)
     if not biblia:
-        input(Fore.RED + 'No se encontrÃ³ biblia.json. Enter...'); return
-    engine, cfg = _tts_init()
-    if not engine:
-        input(Fore.RED + 'No se pudo inicializar TTS. Enter...'); return
-
+        input(Fore.RED + 'No se pudo cargar la versión seleccionada. Enter...')
+        return
+    engine = _init_tts(cfg)
     while True:
         os.system('cls' if os.name == 'nt' else 'clear')
         print(Fore.CYAN + '=' * 50)
-        print(Fore.YELLOW + 'AUDIO BIBLIA (TTS)'.center(50))
+        print(Fore.YELLOW + f'AUDIO BIBLIA ({version})'.center(50))
         print(Fore.CYAN + '=' * 50)
-        print(Fore.GREEN + '\\n1. Escuchar capÃ­tulo completo')
-        print(Fore.GREEN + '2. Escuchar versÃ­culo especÃ­fico')
-        print(Fore.GREEN + '3. Configurar voz y velocidad')
-        print(Fore.RED + '0. Volver')
-        op = input(Fore.WHITE + '\\nSelecciona: ').strip()
-        if op == '0':
-            engine.stop()
-            break
-        elif op == '1':
-            escuchar_capitulo(engine, biblia)
-        elif op == '2':
-            escuchar_versiculo(engine, biblia)
-        elif op == '3':
-            configurar_audio(engine)
+        books = list(biblia.keys())
+        for i, book in enumerate(books, 1):
+            print(f'{i:2}. {book}')
+        print(Fore.RED + '\\n0. Volver')
+        sel = input(Fore.WHITE + '\\nSelecciona un libro: ').strip()
+        if sel == '0': break
+        if sel.isdigit():
+            idx = int(sel)
+            if 1 <= idx <= len(books):
+                nombre_libro = books[idx-1]
+                _menu_capitulos(engine, biblia[nombre_libro], nombre_libro, cfg)
 
-def escuchar_capitulo(engine, biblia):
-    ref = input(Fore.WHITE + '\\nLibro y capÃ­tulo (Ej: GÃ©nesis 1): ').strip()
-    try:
-        partes = ref.split()
-        libro = ' '.join(partes[:-1])
-        cap = partes[-1]
-        texto = ''
-        for bloque in ['antiguo_testamento', 'nuevo_testamento']:
-            if libro in biblia.get(bloque, {}):
-                if cap in biblia[bloque][libro]:
-                    for num, t in biblia[bloque][libro][cap].items():
-                        texto += f'VersÃ­culo {num}. {t} '
-                    break
-        if texto:
-            print(Fore.GREEN + '\\nReproduciendo...')
-            engine.say(f'CapÃ­tulo {cap} del libro de {libro}')
-            engine.say(texto)
-            engine.runAndWait()
-            print(Fore.GREEN + 'Completado.')
-        else:
-            print(Fore.RED + 'No encontrado.')
-    except KeyboardInterrupt:
-        engine.stop()
-        print(Fore.YELLOW + '\\nDetenido por el usuario.')
-    input(Fore.WHITE + '\\nEnter para continuar...')
+def _menu_capitulos(engine, libro_dict, nombre_libro, cfg):
+    while True:
+        os.system('cls' if os.name == 'nt' else 'clear')
+        print(Fore.CYAN + '=' * 50)
+        print(Fore.YELLOW + f'{nombre_libro}'.center(50))
+        print(Fore.CYAN + '=' * 50)
+        caps = sorted(list(libro_dict.keys()), key=lambda x: int(str(x)))
+        print(Fore.GREEN + '\\nCapítulos disponibles:')
+        print(', '.join([str(c) for c in caps]))
+        print(Fore.RED + '\\n0. Volver')
+        sel = input(Fore.WHITE + '\\nCapítulo a leer en voz alta: ').strip()
+        if sel == '0': break
+        key = sel if sel in libro_dict else (str(int(sel)) if sel.isdigit() and str(int(sel)) in libro_dict else None)
+        if key:
+            _leer_capitulo(engine, libro_dict[key], nombre_libro, key, cfg)
 
-def escuchar_versiculo(engine, biblia):
-    ref = input(Fore.WHITE + '\\nReferencia (Ej: Juan 3:16): ').strip()
-    try:
-        partes = ref.split()
-        libro = ' '.join(partes[:-1])
-        cap_vers = partes[-1].split(':')
-        cap = cap_vers[0]; vers = cap_vers[1] if len(cap_vers) > 1 else '1'
-        texto = ''
-        for bloque in ['antiguo_testamento', 'nuevo_testamento']:
-            if libro in biblia.get(bloque, {}):
-                if cap in biblia[bloque][libro] and vers in biblia[bloque][libro][cap]:
-                    texto = biblia[bloque][libro][cap][vers]
-                    break
-        if texto:
-            print(Fore.GREEN + '\\nReproduciendo...')
-            engine.say(f'{libro} capÃ­tulo {cap} versÃ­culo {vers}')
-            engine.say(texto)
-            engine.runAndWait()
-            print(Fore.GREEN + 'Completado.')
-        else:
-            print(Fore.RED + 'No encontrado.')
-    except KeyboardInterrupt:
-        engine.stop()
-        print(Fore.YELLOW + '\\nDetenido por el usuario.')
-    input(Fore.WHITE + '\\nEnter para continuar...')
-
-def configurar_audio(engine):
-    os.system('cls' if os.name == 'nt' else 'clear')
-    print(Fore.CYAN + '=' * 50)
-    print(Fore.YELLOW + 'CONFIGURACIÃ“N DE AUDIO'.center(50))
-    print(Fore.CYAN + '=' * 50)
-    try:
-        v = int(input(Fore.WHITE + '\\nNueva velocidad (100â€“300): ').strip())
-        if 100 <= v <= 300:
-            engine.setProperty('rate', v)
-            cfg = _load_json(CONFIG_FILE, default={})
-            cfg['velocidad_audio'] = v
-            with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-                json.dump(cfg, f, indent=2, ensure_ascii=False)
-            print(Fore.GREEN + 'Velocidad actualizada.')
-        else:
-            print(Fore.RED + 'Rango invÃ¡lido.')
-    except ValueError:
-        print(Fore.RED + 'Valor invÃ¡lido.')
-    input(Fore.WHITE + '\\nEnter para continuar...')
+def _leer_capitulo(engine, cap_dict, libro, cap, cfg):
+    show_nums = cfg.get('mostrar_numeros_versiculos', True)
+    encabezado = f'{libro}, capítulo {cap}'
+    print(Fore.CYAN + '\\nLeyendo: ' + encabezado)
+    _speak(engine, encabezado)
+    for vers, texto in sorted(cap_dict.items(), key=lambda kv: int(str(kv[0]))):
+        frase = f'Versículo {vers}. {texto}' if show_nums else texto
+        print(Fore.WHITE + (f'{vers}. ' if show_nums else '') + texto)
+        _speak(engine, frase)
+    input(Fore.GREEN + '\\nEnter para continuar...')
