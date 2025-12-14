@@ -1,35 +1,104 @@
-﻿import tkinter as tk
-from tkinter import ttk
+﻿import os
+import sys
+import tkinter as tk
+from tkinter import ttk, messagebox
+from PIL import Image, ImageTk
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.reader import BibleReader
 from core.audio import AudioReader
 from core.devocionales import Devocionales
 
+APP_TITLE = "BibliaInteractiva"
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
 class BibliaApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("BibliaInteractiva")
-        self.geometry("800x600")
-        self.reader = BibleReader("data/biblia_demo.json")
+        self.title(APP_TITLE)
+        self.geometry("1024x640")
+        self.configure(bg="#142336")
+
+        # Icono de la aplicación
+        icon_path = os.path.join(ROOT, "assets", "icons", "biblia.ico")
+        if os.path.exists(icon_path):
+            try:
+                self.iconbitmap(icon_path)
+            except Exception:
+                pass
+
+        # Banner superior
+        banner_path = os.path.join(ROOT, "assets", "images", "banner.png")
+        if os.path.exists(banner_path):
+            img = Image.open(banner_path)
+            self.banner_img = ImageTk.PhotoImage(img)
+            tk.Label(self, image=self.banner_img, bg="#142336").pack(fill="x")
+
+        # Frames principales
+        container = tk.Frame(self, bg="#142336")
+        container.pack(fill="both", expand=True, padx=10, pady=10)
+
+        left = tk.Frame(container, bg="#142336")
+        left.pack(side="left", fill="y", padx=(0,10))
+
+        right = tk.Frame(container, bg="#142336")
+        right.pack(side="right", fill="both", expand=True)
+
+        # Reader setup
+        self.reader = BibleReader(os.path.join(ROOT, "data", "biblia_demo.json"))
         self.audio = AudioReader()
-        self.devo = Devocionales("data/devocionales.json")
+        self.devo = Devocionales(os.path.join(ROOT, "data", "devocionales.json"))
 
-        self.text = tk.Text(self, wrap="word")
-        self.text.pack(fill="both", expand=True)
+        # Área de texto principal
+        self.text_area = tk.Text(right, bg="#0E1A2A", fg="#FFFFFF", font=("Segoe UI", 12), wrap="word")
+        self.text_area.pack(fill="both", expand=True)
 
-        btn = ttk.Button(self, text="Leer Juan 3", command=self.show_text)
-        btn.pack(pady=10)
-        btn2 = ttk.Button(self, text="Audio", command=self.read_audio)
-        btn2.pack()
+        # Devocional del día
+        devo_frame = tk.LabelFrame(left, text="Devocional de hoy", fg="#D4AF37", bg="#142336", labelanchor="n")
+        devo_frame.pack(anchor="w", fill="x", pady=12)
+        self.devo_text = tk.Text(devo_frame, height=12, width=36, bg="#0E1A2A", fg="#FFFFFF", wrap="word")
+        self.devo_text.pack(padx=6, pady=6)
+        self.load_devo()
+
+        # Botones
+        read_btn = ttk.Button(left, text="Leer Juan 3", command=self.show_text)
+        read_btn.pack(anchor="w", pady=(10,4))
+        audio_btn = ttk.Button(left, text="Audio", command=self.read_audio)
+        audio_btn.pack(anchor="w")
+
+        # Status bar
+        self.status = tk.StringVar(value="Listo")
+        status_bar = tk.Label(self, textvariable=self.status, bg="#0E1A2A", fg="#D4AF37")
+        status_bar.pack(fill="x")
+
+    def load_devo(self):
+        d = self.devo.hoy()
+        if d:
+            content = f"{d['titulo']}\n{d['versiculo']}\n\n{d['texto']}\n\nAplicación:\n{d['reflexion']}"
+            self.devo_text.delete("1.0", tk.END)
+            self.devo_text.insert(tk.END, content)
 
     def show_text(self):
         txt = self.reader.get_text("Juan","3")
-        self.text.delete("1.0", tk.END)
+        self.text_area.delete("1.0", tk.END)
         for v, t in txt.items():
-            self.text.insert(tk.END, f"{v}. {t}\n")
+            self.text_area.insert(tk.END, f"{v}. {t}\n")
+        self.status.set("Mostrando Juan 3")
 
     def read_audio(self):
-        self.audio.speak(self.text.get("1.0", tk.END))
+        current = self.text_area.get("1.0", tk.END).strip()
+        if not current:
+            self.show_text()
+            current = self.text_area.get("1.0", tk.END).strip()
+        if not current:
+            messagebox.showinfo(APP_TITLE, "No hay texto para leer.")
+            return
+        self.audio.speak(current)
+        self.status.set("Leyendo en voz alta...")
 
-if __name__ == "__main__":
+def main():
     app = BibliaApp()
     app.mainloop()
+
+if __name__ == "__main__":
+    main()
