@@ -13,17 +13,8 @@ def _load_json(path, default=None):
     except FileNotFoundError:
         return default
 
-def _save_json(path, data):
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-
 def _get_config():
-    cfg = _load_json(CONFIG_FILE, default={
-        'idioma':'es','version_biblia':'RV1909-es','velocidad_audio':150,
-        'voz_audio':'auto','mostrar_numeros_versiculos':True,'tema':'claro'
-    })
-    if cfg is None: cfg = {}
-    return cfg
+    return _load_json(CONFIG_FILE, default={})
 
 def _load_version(version_name):
     file_path = os.path.join(VERSIONS_DIR, version_name + '.json')
@@ -33,24 +24,8 @@ def _load_version(version_name):
 
 def _init_tts(cfg):
     engine = pyttsx3.init()
-    # Configurar velocidad
     rate = int(cfg.get('velocidad_audio', 150))
     engine.setProperty('rate', rate)
-    # Seleccionar voz
-    preferred = cfg.get('voz_audio', 'auto')
-    voices = engine.getProperty('voices') or []
-    selected = None
-    if preferred != 'auto':
-        for v in voices:
-            if preferred.lower() in (v.name or '').lower() or preferred.lower() in (v.id or '').lower():
-                selected = v.id; break
-    else:
-        # Intentar voz en español
-        for v in voices:
-            meta = (v.name or '') + ' ' + (v.id or '')
-            if any(tag in meta.lower() for tag in ['es', 'spanish', 'es-la', 'es-es']):
-                selected = v.id; break
-    if selected: engine.setProperty('voice', selected)
     return engine
 
 def _speak(engine, text):
@@ -67,38 +42,45 @@ def menu_audio():
     engine = _init_tts(cfg)
     while True:
         os.system('cls' if os.name == 'nt' else 'clear')
-        print(Fore.CYAN + '=' * 50)
+        print(Fore.CYAN + '='*50)
         print(Fore.YELLOW + f'AUDIO BIBLIA ({version})'.center(50))
-        print(Fore.CYAN + '=' * 50)
-        books = list(biblia.keys())
-        for i, book in enumerate(books, 1):
-            print(f'{i:2}. {book}')
+        print(Fore.CYAN + '='*50)
+        libros = list(biblia.keys())
+        for i, libro in enumerate(libros,1):
+            print(f"{i}. {libro}")
         print(Fore.RED + '\\n0. Volver')
         sel = input(Fore.WHITE + '\\nSelecciona un libro: ').strip()
         if sel == '0': break
         if sel.isdigit():
             idx = int(sel)
-            if 1 <= idx <= len(books):
-                nombre_libro = books[idx-1]
-                _menu_capitulos(engine, biblia[nombre_libro], nombre_libro, cfg)
+            if 1 <= idx <= len(libros):
+                nombre_libro = libros[idx-1]
+                seleccionar_capitulo(engine, biblia[nombre_libro], nombre_libro, cfg)
 
-def _menu_capitulos(engine, libro_dict, nombre_libro, cfg):
+def seleccionar_capitulo(engine, libro_dict, nombre_libro, cfg):
+    if "chapters" in libro_dict:
+        cap_dict = libro_dict["chapters"]
+    else:
+        cap_dict = libro_dict
     while True:
         os.system('cls' if os.name == 'nt' else 'clear')
-        print(Fore.CYAN + '=' * 50)
+        print(Fore.CYAN + '='*50)
         print(Fore.YELLOW + f'{nombre_libro}'.center(50))
-        print(Fore.CYAN + '=' * 50)
-        caps = sorted(list(libro_dict.keys()), key=lambda x: int(str(x)))
+        print(Fore.CYAN + '='*50)
+        caps = sorted([k for k in cap_dict.keys() if str(k).isdigit()],
+                      key=lambda x: int(str(x)))
         print(Fore.GREEN + '\\nCapítulos disponibles:')
-        print(', '.join([str(c) for c in caps]))
+        if caps:
+            print(', '.join([str(c) for c in caps]))
+        else:
+            print(Fore.RED + 'No hay capítulos disponibles en este libro.')
         print(Fore.RED + '\\n0. Volver')
-        sel = input(Fore.WHITE + '\\nCapítulo a leer en voz alta: ').strip()
+        sel = input(Fore.WHITE + '\\nCapítulo: ').strip()
         if sel == '0': break
-        key = sel if sel in libro_dict else (str(int(sel)) if sel.isdigit() and str(int(sel)) in libro_dict else None)
-        if key:
-            _leer_capitulo(engine, libro_dict[key], nombre_libro, key, cfg)
+        if sel in caps:
+            leer_capitulo(engine, cap_dict[sel], nombre_libro, sel, cfg)
 
-def _leer_capitulo(engine, cap_dict, libro, cap, cfg):
+def leer_capitulo(engine, cap_dict, libro, cap, cfg):
     show_nums = cfg.get('mostrar_numeros_versiculos', True)
     encabezado = f'{libro}, capítulo {cap}'
     print(Fore.CYAN + '\\nLeyendo: ' + encabezado)
