@@ -16,7 +16,7 @@ class BibliaApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title(APP_TITLE)
-        self.geometry("1024x640")
+        self.geometry("1200x700")
         self.configure(bg="#142336")
 
         # Icono
@@ -60,7 +60,7 @@ class BibliaApp(tk.Tk):
         self.devo_text.pack(padx=6, pady=6)
         self.load_devo()
 
-        # Botones estilizados
+        # Botones principales
         style = ttk.Style()
         style.theme_use("clam")
         style.configure("TButton", background="#D4AF37", foreground="#142336", font=("Segoe UI", 11, "bold"))
@@ -68,10 +68,29 @@ class BibliaApp(tk.Tk):
                   background=[("active", "#E5C158")],
                   foreground=[("active", "#000000")])
 
-        read_btn = ttk.Button(left, text="📖 Leer Juan 3", command=self.show_text)
-        read_btn.pack(anchor="w", pady=(10,4))
-        audio_btn = ttk.Button(left, text="🔊 Audio", command=self.read_audio)
-        audio_btn.pack(anchor="w")
+        ttk.Button(left, text="📖 Leer Juan 3", command=self.show_text).pack(anchor="w", pady=(10,4))
+        ttk.Button(left, text="🔊 Audio", command=self.read_audio).pack(anchor="w")
+
+        # Búsqueda de versículos
+        search_frame = tk.LabelFrame(left, text="Buscar versículo", fg="#D4AF37", bg="#142336", font=("Segoe UI", 11, "bold"))
+        search_frame.pack(anchor="w", fill="x", pady=12)
+        self.search_var = tk.StringVar()
+        tk.Entry(search_frame, textvariable=self.search_var, width=25).pack(padx=6, pady=4)
+        ttk.Button(search_frame, text="Buscar", command=self.search_text).pack(pady=4)
+
+        # Planes de lectura (demo)
+        plan_frame = tk.LabelFrame(left, text="Plan de lectura", fg="#D4AF37", bg="#142336", font=("Segoe UI", 11, "bold"))
+        plan_frame.pack(anchor="w", fill="x", pady=12)
+        self.plan_text = tk.Text(plan_frame, height=8, width=36, bg="#0E1A2A", fg="#FFFFFF", wrap="word", font=("Segoe UI", 10))
+        self.plan_text.pack(padx=6, pady=6)
+        self.plan_text.insert(tk.END, "Plan demo:\nDía 1: Génesis 1\nDía 2: Juan 3")
+
+        # Notas personales
+        notes_frame = tk.LabelFrame(left, text="Notas personales", fg="#D4AF37", bg="#142336", font=("Segoe UI", 11, "bold"))
+        notes_frame.pack(anchor="w", fill="x", pady=12)
+        self.notes_text = tk.Text(notes_frame, height=8, width=36, bg="#0E1A2A", fg="#FFFFFF", wrap="word", font=("Segoe UI", 10))
+        self.notes_text.pack(padx=6, pady=6)
+        ttk.Button(notes_frame, text="Guardar notas", command=self.save_notes).pack(pady=4)
 
         # Status bar
         self.status = tk.StringVar(value="Listo")
@@ -102,6 +121,30 @@ class BibliaApp(tk.Tk):
             return
         self.audio.speak(current)
         self.status.set("Leyendo en voz alta...")
+
+    def search_text(self):
+        query = self.search_var.get().lower()
+        results = []
+        for book in self.reader.get_books():
+            for ch in self.reader.get_chapters(book):
+                verses = self.reader.get_text(book, ch)
+                for v, t in verses.items():
+                    if query in t.lower():
+                        results.append(f"{book} {ch}:{v} - {t}")
+        self.text_area.delete("1.0", tk.END)
+        if results:
+            self.text_area.insert(tk.END, "\n".join(results))
+            self.status.set(f"Resultados para '{query}'")
+        else:
+            self.text_area.insert(tk.END, "No se encontraron resultados.")
+            self.status.set("Sin resultados")
+
+    def save_notes(self):
+        notes = self.notes_text.get("1.0", tk.END).strip()
+        path = os.path.join(ROOT, "data", "notas.txt")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(notes)
+        self.status.set("Notas guardadas en data/notas.txt")
 
 def main():
     app = BibliaApp()

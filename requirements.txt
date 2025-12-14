@@ -1,3 +1,3 @@
-colorama>=0.4.6
-pyttsx3>=2.90
-requests>=2.32.0
+﻿pyttsx3==2.90
+Pillow==10.4.0
+pyinstaller==6.6.0
