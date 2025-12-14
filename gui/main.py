@@ -19,7 +19,7 @@ class BibliaApp(tk.Tk):
         self.geometry("1024x640")
         self.configure(bg="#142336")
 
-        # Icono de la aplicación
+        # Icono
         icon_path = os.path.join(ROOT, "assets", "icons", "biblia.ico")
         if os.path.exists(icon_path):
             try:
@@ -27,14 +27,14 @@ class BibliaApp(tk.Tk):
             except Exception:
                 pass
 
-        # Banner superior
+        # Banner
         banner_path = os.path.join(ROOT, "assets", "images", "banner.png")
         if os.path.exists(banner_path):
             img = Image.open(banner_path)
             self.banner_img = ImageTk.PhotoImage(img)
             tk.Label(self, image=self.banner_img, bg="#142336").pack(fill="x")
 
-        # Frames principales
+        # Contenedor principal
         container = tk.Frame(self, bg="#142336")
         container.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -54,21 +54,28 @@ class BibliaApp(tk.Tk):
         self.text_area.pack(fill="both", expand=True)
 
         # Devocional del día
-        devo_frame = tk.LabelFrame(left, text="Devocional de hoy", fg="#D4AF37", bg="#142336", labelanchor="n")
+        devo_frame = tk.LabelFrame(left, text="Devocional de hoy", fg="#D4AF37", bg="#142336", labelanchor="n", font=("Segoe UI", 11, "bold"))
         devo_frame.pack(anchor="w", fill="x", pady=12)
-        self.devo_text = tk.Text(devo_frame, height=12, width=36, bg="#0E1A2A", fg="#FFFFFF", wrap="word")
+        self.devo_text = tk.Text(devo_frame, height=12, width=36, bg="#0E1A2A", fg="#FFFFFF", wrap="word", font=("Segoe UI", 10))
         self.devo_text.pack(padx=6, pady=6)
         self.load_devo()
 
-        # Botones
-        read_btn = ttk.Button(left, text="Leer Juan 3", command=self.show_text)
+        # Botones estilizados
+        style = ttk.Style()
+        style.theme_use("clam")
+        style.configure("TButton", background="#D4AF37", foreground="#142336", font=("Segoe UI", 11, "bold"))
+        style.map("TButton",
+                  background=[("active", "#E5C158")],
+                  foreground=[("active", "#000000")])
+
+        read_btn = ttk.Button(left, text="📖 Leer Juan 3", command=self.show_text)
         read_btn.pack(anchor="w", pady=(10,4))
-        audio_btn = ttk.Button(left, text="Audio", command=self.read_audio)
+        audio_btn = ttk.Button(left, text="🔊 Audio", command=self.read_audio)
         audio_btn.pack(anchor="w")
 
         # Status bar
         self.status = tk.StringVar(value="Listo")
-        status_bar = tk.Label(self, textvariable=self.status, bg="#0E1A2A", fg="#D4AF37")
+        status_bar = tk.Label(self, textvariable=self.status, bg="#0E1A2A", fg="#D4AF37", font=("Segoe UI", 10))
         status_bar.pack(fill="x")
 
     def load_devo(self):
