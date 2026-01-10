@@ -1,0 +1,7 @@
+﻿# AI Context - BibliaInteractiva
+Generado automáticamente el 2025-12-14 00:24:22
+
+- Datos JSON iniciales creados
+- Módulos core listos (lector, audio, devocionales)
+- GUI básica en Tkinter funcionando
+- Scripts de ejecución y build añadidos

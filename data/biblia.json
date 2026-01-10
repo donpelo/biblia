@@ -1,0 +1,15 @@
+﻿[
+  {
+    "nombre": "Juan",
+    "capitulos": [
+      {
+        "numero": 3,
+        "versiculos": [
+          { "texto": "Porque de tal manera amó Dios al mundo," },
+          { "texto": "que ha dado a su Hijo unigénito," },
+          { "texto": "para que todo aquel que en él cree no se pierda, mas tenga vida eterna." }
+        ]
+      }
+    ]
+  }
+]

@@ -1,0 +1,20 @@
+﻿[
+    {
+        "id": "GEN",
+        "name": "Genesis",
+        "chapters": 50,
+        "testament": "AT"
+    },
+    {
+        "id": "EXO",
+        "name": "Exodo",
+        "chapters": 40,
+        "testament": "AT"
+    },
+    {
+        "id": "JHN",
+        "name": "Juan",
+        "chapters": 21,
+        "testament": "NT"
+    }
+]
