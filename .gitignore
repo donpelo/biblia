@@ -11,3 +11,8 @@ __pycache__/
 update-log.txt
 prueba.txt
 Nuevo documento de texto.txt
+**/__pycache__/
+*.pyo
+*.pyd
+scripts/Nuevo documento de texto.txt
+config/.env
