@@ -1,0 +1,120 @@
+﻿# -*- coding: utf-8 -*-
+import tkinter as tk
+from tkinter import ttk, messagebox
+import subprocess
+import sys
+from core.bible_reader import BibleReader
+import os
+import json
+from core.bible_loader import load_bible_json, get_verse
+
+
+APP_TITLE   = "Biblia"
+APP_VERSION = "v1.0"
+BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
+
+def _version_path(version_id: str) -> str:
+    return os.path.join(BASE_DIR, "data", "versions", f"{version_id}.json")
+
+def load_bible(version_id: str):
+    path = _version_path(version_id)
+    idx, order = load_bible_json(path)
+    return idx, order, path
+
+
+SETTINGS_PATH = os.path.join(BASE_DIR, "config", "gui_settings.json")
+
+DEFAULTS = {
+    "bible_version": "RVR1960",
+    "tts_rate": 180,
+    "tts_voice": "",
+    "daily_ref": "Romanos 8:28",
+    "daily_title": "Propósito",
+    "daily_note": ""
+}
+
+def _safe_int(v, fallback):
+    try:
+        return int(v)
+    except Exception:
+        return fallback
+
+def load_settings():
+    s = dict(DEFAULTS)
+    try:
+        if os.path.exists(SETTINGS_PATH):
+            with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                s.update({k: data.get(k, s[k]) for k in s.keys()})
+    except Exception:
+        pass
+    s["tts_rate"] = _safe_int(s.get("tts_rate", DEFAULTS["tts_rate"]), DEFAULTS["tts_rate"])
+    return s
+
+def save_settings(s: dict):
+    os.makedirs(os.path.dirname(SETTINGS_PATH), exist_ok=True)
+    with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
+        json.dump(s, f, ensure_ascii=False, indent=2)
+
+def launch_python(relpath, cwd=BASE_DIR, extra_args=None):
+    extra_args = extra_args or []
+    target = os.path.join(BASE_DIR, relpath)
+    if not os.path.exists(target):
+        raise FileNotFoundError(target)
+    subprocess.Popen([sys.executable, target] + extra_args, cwd=cwd)
+
+class BibliaMenu(tk.Tk):
+    def __init__(self):
+        super().__init__()
+
+        self._log_buffer = []  # buffer para mensajes antes de crear el widget log
+        self.settings = load_settings()
+        
+        self.bible_version = getattr(self, "bible_version", None) or "RV1909-es"
+        try:
+            self.bible_idx, self.books_order, self.bible_path = load_bible(self.bible_version)
+            self.write(f"Versión: {self.bible_version}\n")
+            self.write(f"Biblia cargada OK ({len(self.books_order)} libros)\n")
+        except Exception as e:
+            self.bible_idx = {}
+            self.books_order = []
+            self.bible_path = ""
+            self.write("[ERROR] No se pudo cargar la Biblia\n")
+            self.write(f"Versión: {self.bible_version}\n")
+            self.write(f"Ruta esperada: {_version_path(self.bible_version)}\n")
+            self.write(f"Detalle: {e}\n")
+
+
+        self.title(f"{APP_TITLE} {APP_VERSION}")
+        self.geometry("1200x720")
+        self.minsize(1000, 600)
+
+        root = ttk.Frame(self, padding=10)
+        root.pack(fill="both", expand=True)
+
+        left = ttk.LabelFrame(root, text="Acciones", padding=10)
+        left.pack(side="left", fill="y", padx=(0,10))
+
+        right = ttk.LabelFrame(root, text="Estado", padding=10)
+        right.pack(side="right", fill="both", expand=True)
+
+        self.log = tk.Text(right, height=25, wrap="word")
+
+        self._load_bible_active()
+        self.log.pack(fill="both", expand=True)
+
+        # flush buffer a widget log
+        try:
+            if hasattr(self, "_log_buffer") and self._log_buffer:
+                for _s in self._log_buffer:
+                    self.log.insert("end", _s)
+                self.log.see("end")
+                self._log_buffer = []
+        except Exception:
+            pass
+        top = ttk.Frame(root)
+        top.place(relx=1.0, rely=0.0, anchor="ne")
+        ttk.Button(top, text="Acerca de", command=self.about).pack()
+
+        def btn(txt, cmd):
