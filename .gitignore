@@ -1,12 +1,51 @@
-﻿# Logs
+﻿# =====================
+# Runtime / Logs
+# =====================
 logs/
 *.log
 *.txt
 
-# Configuración
+# =====================
+# Config
+# =====================
 config/*
 !config/default.json
 
+# =====================
 # Python
+# =====================
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.venv/
+.venv_tk/
+
+# =====================
+# Backups
+# =====================
+*.bak
+*.bak_*
+*.BAK
+*.BAK.*
+
+# =====================
+# Build / Dist
+# =====================
+build/
+dist/
+*.spec
+
+# =====================
+# Local / Experimental
+# =====================
+AI/
+AI_LOCAL/
+$Recycle.Bin/
+
+# =====================
+# Scripts experimentales
+# =====================
+*.ps1.BAK*
+Biblia-*.ps1*
+scripts/**/*.BAK*
