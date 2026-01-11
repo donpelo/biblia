@@ -79,6 +79,50 @@ def launch_python(relpath, cwd=BASE_DIR, extra_args=None):
     subprocess.Popen([sys.executable, target] + extra_args, cwd=cwd)
 
 class BibliaMenu(tk.Tk):
+    def open_daily(self):
+        # Acción del botón Lectura del día
+        try:
+            from datetime import date
+            mmdd = date.today().strftime('%m-%d')
+            self.write_safe('[INFO] Lectura del día: ' + mmdd + '\\n') if hasattr(self,'write_safe') else None
+
+            # Intento 1: devocional_calendar.json (si existe y tiene clave MM-DD)
+            cal_path = os.path.join(self.base_dir, 'data', 'devocional_calendar.json') if hasattr(self,'base_dir') else os.path.join(os.getcwd(),'data','devocional_calendar.json')
+            ref = None
+            if os.path.exists(cal_path):
+                try:
+                    import json
+                    with open(cal_path, 'r', encoding='utf-8-sig') as f:
+                        cal = json.load(f)
+                    if isinstance(cal, dict):
+                        ref = cal.get(mmdd) or cal.get(mmdd.replace('-','/'))
+                except Exception as e:
+                    self.write_safe('[WARN] No pude leer devocional_calendar.json: ' + str(e) + '\\n') if hasattr(self,'write_safe') else None
+
+            # Fallback: si no hay ref, mostrar mensaje simple
+            if not ref:
+                try:
+                    from tkinter import messagebox
+                    messagebox.showinfo('Lectura del día', 'Aún no hay referencia cargada para hoy.\\nLuego lo conectamos al plan/devocional.')
+                except Exception:
+                    pass
+                return
+
+            # Si hay ref, lo mostramos en el panel de estado si existe
+            msg = 'Lectura del día (' + mmdd + '): ' + str(ref) + '\\n'
+            if hasattr(self, 'write'):
+                self.write(msg)
+            else:
+                try: print(msg, end='')
+                except Exception: pass
+
+        except Exception as e:
+            try:
+                from tkinter import messagebox
+                messagebox.showerror('Lectura del día', str(e))
+            except Exception:
+                pass
+
     def about(self):
         try:
             from tkinter import messagebox
