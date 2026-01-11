@@ -1,4 +1,18 @@
-﻿# -*- coding: utf-8 -*-
+﻿# BOOT_LOG (auto)
+import traceback as _traceback
+import datetime as _dt
+def _boot_log(msg: str):
+    try:
+        import os as _os
+        p = _os.path.join(_os.path.dirname(__file__), "logs")
+        _os.makedirs(p, exist_ok=True)
+        f = _os.path.join(p, "boot.log")
+        with open(f, "a", encoding="utf-8") as _h:
+            _h.write(f"[{_dt.datetime.now().isoformat(timespec='seconds')}] {msg}\n")
+    except Exception:
+        pass
+_boot_log("START biblia_gui.py")
+# -*- coding: utf-8 -*-
 import tkinter as tk
 from tkinter import ttk, messagebox
 import subprocess
@@ -65,9 +79,51 @@ def launch_python(relpath, cwd=BASE_DIR, extra_args=None):
     subprocess.Popen([sys.executable, target] + extra_args, cwd=cwd)
 
 class BibliaMenu(tk.Tk):
+    def about(self):
+        try:
+            from tkinter import messagebox
+            ver = getattr(self, 'bible_version', 'N/A')
+            messagebox.showinfo('Acerca de', 'Biblia GUI\\nVersión: {0}\\nRepositorio: donpelo/biblia'.format(ver))
+        except Exception as e:
+            try:
+                print('[WARN] about() failed: {0}'.format(e))
+            except Exception:
+                pass
+
+    def write_safe(self, msg: str):
+        # Fallback seguro: no depende de widgets ya creados
+        try:
+            target = None
+            for name in ("log", "out_text", "main_text", "reader_text"):
+                if hasattr(self, name):
+                    target = getattr(self, name)
+                    break
+            if target is not None:
+                try:
+                    target.insert("end", msg)
+                    return
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        try:
+            print(msg, end="")
+        except Exception:
+            pass
+        def about(self):
+            try:
+                from tkinter import messagebox
+                ver = getattr(self, "bible_version", "N/A")
+                messagebox.showinfo("Acerca de", f"Biblia GUI\nVersión: {ver}\n")
+            except Exception as e:
+                try:
+                    print(f"[WARN] about() failed: {e}")
+                except Exception:
+                    pass
     def __init__(self):
         super().__init__()
 
+        self.base_dir = os.path.dirname(os.path.abspath(__file__))
         self._log_buffer = []  # buffer para mensajes antes de crear el widget log
         self.settings = load_settings()
         
@@ -101,13 +157,96 @@ class BibliaMenu(tk.Tk):
 
         self.log = tk.Text(right, height=25, wrap="word")
 
+        # --- BOOTSTRAP (auto) ---
+
+        import os as _os
+
+        if not hasattr(self, 'base_dir'):
+
+            try:
+
+                self.base_dir = _os.path.dirname(__file__)
+
+            except Exception:
+
+                self.base_dir = _os.getcwd()
+
+
+        if not hasattr(self, 'write_safe'):
+
+            def write_safe(msg: str):
+
+                try:
+
+                    print(msg, end='')
+
+                except Exception:
+
+                    pass
+
+            self.write_safe = write_safe
+
+
+        if (not hasattr(self, 'about')) and hasattr(self, '_about'):
+
+            self.about = self._about
+
+        # --- END BOOTSTRAP ---
+
         self._load_bible_active()
-        self.reader_book['values'] = self.reader.books
+        if getattr(self, "reader", None) is not None and getattr(self.reader, "books", None):
+            self.reader_book['values'] = (self.reader.books if self.reader else [])
+        else:
+            try:
+                self.reader_book['values'] = []
+            except Exception:
+                pass
         self.log.pack(fill="both", expand=True)
 
-        self._load_bible_active()
-        self.reader_book['values'] = self.reader.books
+        # --- BOOTSTRAP (auto) ---
 
+        import os as _os
+
+        if not hasattr(self, 'base_dir'):
+
+            try:
+
+                self.base_dir = _os.path.dirname(__file__)
+
+            except Exception:
+
+                self.base_dir = _os.getcwd()
+
+
+        if not hasattr(self, 'write_safe'):
+
+            def write_safe(msg: str):
+
+                try:
+
+                    print(msg, end='')
+
+                except Exception:
+
+                    pass
+
+            self.write_safe = write_safe
+
+
+        if (not hasattr(self, 'about')) and hasattr(self, '_about'):
+
+            self.about = self._about
+
+        # --- END BOOTSTRAP ---
+
+        self._load_bible_active()
+        if getattr(self, "reader", None) is not None and getattr(self.reader, "books", None):
+            self.reader_book['values'] = self.reader.books
+        else:
+            try:
+                self.reader_book['values'] = []
+            except Exception:
+                pass
         # flush buffer a widget log
         try:
             if hasattr(self, "_log_buffer") and self._log_buffer:
@@ -222,5 +361,64 @@ class BibliaMenu(tk.Tk):
         except Exception as e:
             self.reader = None
             self.write_safe(f"[ERROR] Loader Biblia: {e}\\n")
+
+
+
+
+# END_OF_FILE
+_boot_log('EOF_REACHED')
+# === ENTRYPOINT_MINIMAL_FIX ===
+def _ensure_logs_dir():
+    try:
+        import os as _os
+        _p = _os.path.join(_os.path.dirname(__file__), "logs")
+        _os.makedirs(_p, exist_ok=True)
+        return _p
+    except Exception:
+        return None
+
+def _boot_log2(msg: str):
+    try:
+        import os as _os
+        import datetime as _dt
+        _p = _ensure_logs_dir()
+        if not _p:
+            return
+        _f = _os.path.join(_p, "boot.log")
+        with open(_f, "a", encoding="utf-8") as _h:
+            _h.write(f"[{_dt.datetime.now().isoformat(timespec='seconds')}] {msg}\n")
+    except Exception:
+        pass
+
+def _run_gui_entrypoint():
+    _boot_log2("ENTRYPOINT: start")
+    try:
+        cls = globals().get("BibliaMenu", None)
+        _boot_log2("ENTRYPOINT: BibliaMenu=" + ("OK" if cls else "MISSING"))
+        if cls is None:
+            return  # no podemos arrancar si no existe la clase
+
+        app = cls()
+        _boot_log2("ENTRYPOINT: instance created")
+        try:
+            app.mainloop()
+            _boot_log2("ENTRYPOINT: mainloop returned")
+        except Exception as e:
+            _boot_log2("FATAL: mainloop error: " + repr(e))
+            raise
+    except Exception as e:
+        try:
+            import traceback as _tb
+            _boot_log2("FATAL: entrypoint exception: " + repr(e))
+            _boot_log2(_tb.format_exc())
+        except Exception:
+            pass
+        raise
+
+if __name__ == "__main__":
+    _run_gui_entrypoint()
+# === END ENTRYPOINT_MINIMAL_FIX ===
+
+
 
 
