@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import subprocess
 import sys
-import os
+import os`nfrom core.bible_reader import BibleReader
 import json
 from core.bible_loader import load_bible_json, get_verse
 
@@ -169,4 +169,20 @@ class BibliaMenu(tk.Tk):
             except Exception:
                 pass
 
+    def on_reader_go(self):
+        try:
+            book = self.book_var.get()
+            chap = self.chapter_var.get()
+            verse = self.verse_var.get()
+            text = self.reader.get(book, chap, verse)
 
+            if not text:
+                self.write_safe(f"[WARN] No encontrado: {book} {chap}:{verse}\n")
+                return
+
+            out = f"{book} {chap}:{verse}\n\n{text}\n"
+            self.write_safe(out)
+            self.current_text = text
+
+        except Exception as e:
+            self.write_safe(f"[ERROR] Lector: {e}\n")
