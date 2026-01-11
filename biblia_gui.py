@@ -98,7 +98,7 @@ class BibliaMenu(tk.Tk):
         right = ttk.LabelFrame(root, text="Estado", padding=10)
         right.pack(side="right", fill="both", expand=True)
 
-        self.log = tk.Text(right, height=25, wrap="word")
+        self.log = tk.Text(right, height=25, wrap="word")`r`n        self._load_bible_active()
         self.log.pack(fill="both", expand=True)
 
         # flush buffer a widget log
@@ -152,19 +152,14 @@ class BibliaMenu(tk.Tk):
         ref = self.settings.get("daily_ref", DEFAULTS["daily_ref"])
         return f"📌 Lectura del día: {ref}"
     def write(self, s):
-        # seguro si self.log aún no existe
-        if not hasattr(self, "log") or self.log is None:
-            try:
-                print(s, end="")
-            except Exception:
-                pass
-            return
         try:
-            self.log.insert("end", s)
-            self.log.see("end")
-        except Exception:
-            try:
+            if hasattr(self, "log") and self.log:
+                self.log.insert("end", s)
+                self.log.see("end")
+            else:
                 print(s, end="")
-            except Exception:
-                pass
+        except Exception:
+            try: print(s, end="")
+            except Exception: pass
+
 
