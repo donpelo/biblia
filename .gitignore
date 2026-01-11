@@ -1,37 +1,12 @@
-﻿venv/
-build/
-dist/
-__pycache__/
-*.spec
-*.BAK.*
-*.ROTO.*
-*.FIX*.BAK.*
-*SPEAK.BAK*
-*.pyc
-update-log.txt
-prueba.txt
-Nuevo documento de texto.txt
-**/__pycache__/
-*.pyo
-*.pyd
-scripts/Nuevo documento de texto.txt
-config/.env
+﻿# Logs
+logs/
+*.log
+*.txt
+
+# Configuración
+config/*
+!config/default.json
+
 # Python
-*.egg-info/
-# Venvs
-.venv/
-.venv_tk/
-# Windows
-$Recycle.Bin/
-Thumbs.db
-Desktop.ini
-# Backups / dumps
-*.bak_*
-*.BAK_*
-*.tmp
-
-# Local stuff
-AI/
-AI_LOCAL/
-
-*.before_old_*
+__pycache__/
+*.pyc
