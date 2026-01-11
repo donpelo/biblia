@@ -5,10 +5,21 @@ import subprocess
 import sys
 import os
 import json
+from core.bible_loader import load_bible_json, get_verse
+
 
 APP_TITLE   = "Biblia"
 APP_VERSION = "v1.0"
 BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
+
+def _version_path(version_id: str) -> str:
+    return os.path.join(BASE_DIR, "data", "versions", f"{version_id}.json")
+
+def load_bible(version_id: str):
+    path = _version_path(version_id)
+    idx, order = load_bible_json(path)
+    return idx, order, path
+
 
 SETTINGS_PATH = os.path.join(BASE_DIR, "config", "gui_settings.json")
 
@@ -54,8 +65,24 @@ def launch_python(relpath, cwd=BASE_DIR, extra_args=None):
 
 class BibliaMenu(tk.Tk):
     def __init__(self):
-        super().__init__()
+        super().__init__()
+        self._log_buffer = []  # buffer para mensajes antes de crear el widget log
         self.settings = load_settings()
+        
+        self.bible_version = getattr(self, "bible_version", None) or "RV1909-es"
+        try:
+            self.bible_idx, self.books_order, self.bible_path = load_bible(self.bible_version)
+            self.write(f"Versión: {self.bible_version}\n")
+            self.write(f"Biblia cargada OK ({len(self.books_order)} libros)\n")
+        except Exception as e:
+            self.bible_idx = {}
+            self.books_order = []
+            self.bible_path = ""
+            self.write("[ERROR] No se pudo cargar la Biblia\n")
+            self.write(f"Versión: {self.bible_version}\n")
+            self.write(f"Ruta esperada: {_version_path(self.bible_version)}\n")
+            self.write(f"Detalle: {e}\n")
+
 
         self.title(f"{APP_TITLE} {APP_VERSION}")
         self.geometry("1200x720")
@@ -73,6 +100,15 @@ class BibliaMenu(tk.Tk):
         self.log = tk.Text(right, height=25, wrap="word")
         self.log.pack(fill="both", expand=True)
 
+        # flush buffer a widget log
+        try:
+            if hasattr(self, "_log_buffer") and self._log_buffer:
+                for _s in self._log_buffer:
+                    self.log.insert("end", _s)
+                self.log.see("end")
+                self._log_buffer = []
+        except Exception:
+            pass
         top = ttk.Frame(root)
         top.place(relx=1.0, rely=0.0, anchor="ne")
         ttk.Button(top, text="Acerca de", command=self.about).pack()
@@ -114,135 +150,17 @@ class BibliaMenu(tk.Tk):
     def _daily_label(self):
         ref = self.settings.get("daily_ref", DEFAULTS["daily_ref"])
         return f"📌 Lectura del día: {ref}"
-
     def write(self, s):
-        self.log.insert("end", s)
-        self.log.see("end")
-
-    def about(self):
-        messagebox.showinfo(APP_TITLE, f"{APP_TITLE} {APP_VERSION}\nRepositorio: donpelo/biblia")
-
-    def launch_console(self, relpath, msg):
-        self.write(msg + "\n")
+        # Robust: si el widget aún no existe, guardamos en buffer
         try:
-            launch_python(relpath)
-        except FileNotFoundError:
-            self.write(f"[ERROR] No existe: {relpath}\n")
-            messagebox.showerror(APP_TITLE, f"No existe:\n{os.path.join(BASE_DIR, relpath)}")
-        except Exception as e:
-            self.write(f"[ERROR] {e}\n")
-            messagebox.showerror(APP_TITLE, str(e))
-
-    def launch_gui(self, relpath, msg):
-        self.write(msg + "\n")
-        try:
-            # GUI sin consola: usar pythonw si está disponible
-            pyw = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
-            target = os.path.join(BASE_DIR, relpath)
-            if not os.path.exists(target):
-                raise FileNotFoundError(target)
-            if os.path.exists(pyw):
-                subprocess.Popen([pyw, target], cwd=BASE_DIR)
-            else:
-                subprocess.Popen([sys.executable, target], cwd=BASE_DIR)
-        except FileNotFoundError:
-            self.write(f"[ERROR] No existe: {relpath}\n")
-            messagebox.showerror(APP_TITLE, f"No existe:\n{os.path.join(BASE_DIR, relpath)}")
-        except Exception as e:
-            self.write(f"[ERROR] {e}\n")
-            messagebox.showerror(APP_TITLE, str(e))
-
-    def open_daily(self):
-        ref = self.settings.get("daily_ref", DEFAULTS["daily_ref"])
-        title = self.settings.get("daily_title", "")
-        note = self.settings.get("daily_note", "")
-        self.write(f"Lectura del día -> {ref}\n")
-
-        # Muestra info y (opcional) abre el lector de consola
-        messagebox.showinfo(APP_TITLE, f"Lectura del día:\n{ref}\n\n{title}\n{note}".strip())
-
-        # Intenta abrir lector bíblico de consola (si acepta args, perfecto; si no, igual abre)
-        try:
-            launch_python("modules/lector_biblia.py", extra_args=["--ref", ref])
+            w = getattr(self, "log", None)
+            if w is None:
+                if not hasattr(self, "_log_buffer"):
+                    self._log_buffer = []
+                self._log_buffer.append(s)
+                return
+            w.insert("end", s)
+            w.see("end")
         except Exception:
-            # Si no soporta args, lo abrimos sin args
-            try:
-                launch_python("modules/lector_biblia.py")
-            except Exception:
-                pass
+            pass
 
-    def open_settings(self):
-        win = tk.Toplevel(self)
-        win.title("Configuración")
-        win.geometry("560x360")
-        win.resizable(False, False)
-
-        frm = ttk.Frame(win, padding=14)
-        frm.pack(fill="both", expand=True)
-
-        s = dict(self.settings)
-
-        # Variables
-        v_bible = tk.StringVar(value=s.get("bible_version",""))
-        v_rate  = tk.StringVar(value=str(s.get("tts_rate", DEFAULTS["tts_rate"])))
-        v_voice = tk.StringVar(value=s.get("tts_voice",""))
-
-        v_ref   = tk.StringVar(value=s.get("daily_ref",""))
-        v_title = tk.StringVar(value=s.get("daily_title",""))
-        v_note  = tk.StringVar(value=s.get("daily_note",""))
-
-        # Layout
-        ttk.Label(frm, text="Configuración", font=("Segoe UI", 14, "bold")).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0,10))
-
-        ttk.Label(frm, text="Versión Biblia").grid(row=1, column=0, sticky="w")
-        ttk.Entry(frm, textvariable=v_bible, width=20).grid(row=1, column=1, sticky="w")
-
-        ttk.Label(frm, text="TTS velocidad (rate)").grid(row=2, column=0, sticky="w", pady=(6,0))
-        ttk.Entry(frm, textvariable=v_rate, width=10).grid(row=2, column=1, sticky="w", pady=(6,0))
-
-        ttk.Label(frm, text="TTS voz (id opcional)").grid(row=3, column=0, sticky="w", pady=(6,0))
-        ttk.Entry(frm, textvariable=v_voice, width=40).grid(row=3, column=1, sticky="w", pady=(6,0))
-
-        ttk.Separator(frm).grid(row=4, column=0, columnspan=2, sticky="ew", pady=10)
-
-        ttk.Label(frm, text="Lectura del día (hoy)", font=("Segoe UI", 10, "bold")).grid(row=5, column=0, columnspan=2, sticky="w", pady=(0,6))
-
-        ttk.Label(frm, text="Referencia").grid(row=6, column=0, sticky="w")
-        ttk.Entry(frm, textvariable=v_ref, width=22).grid(row=6, column=1, sticky="w")
-
-        ttk.Label(frm, text="Título").grid(row=7, column=0, sticky="w", pady=(6,0))
-        ttk.Entry(frm, textvariable=v_title, width=40).grid(row=7, column=1, sticky="w", pady=(6,0))
-
-        ttk.Label(frm, text="Nota").grid(row=8, column=0, sticky="w", pady=(6,0))
-        ttk.Entry(frm, textvariable=v_note, width=40).grid(row=8, column=1, sticky="w", pady=(6,0))
-
-        # Botones
-        btns = ttk.Frame(frm)
-        btns.grid(row=9, column=0, columnspan=2, sticky="w", pady=16)
-
-        def on_save():
-            s2 = dict(self.settings)
-            s2["bible_version"] = v_bible.get().strip() or DEFAULTS["bible_version"]
-            s2["tts_rate"] = _safe_int(v_rate.get().strip(), DEFAULTS["tts_rate"])
-            s2["tts_voice"] = v_voice.get().strip()
-
-            s2["daily_ref"] = v_ref.get().strip() or DEFAULTS["daily_ref"]
-            s2["daily_title"] = v_title.get().strip()
-            s2["daily_note"] = v_note.get().strip()
-
-            save_settings(s2)
-            self.settings = s2
-            self.daily_btn.configure(text=self._daily_label())
-            self.write("Configuración guardada.\n")
-            win.destroy()
-
-        ttk.Button(btns, text="Guardar", command=on_save).pack(side="left", padx=(0,10))
-        ttk.Button(btns, text="Cerrar", command=win.destroy).pack(side="left")
-
-        win.transient(self)
-        win.grab_set()
-        win.focus_set()
-
-if __name__ == "__main__":
-    app = BibliaMenu()
-    app.mainloop()
