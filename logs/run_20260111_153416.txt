@@ -1,0 +1,7 @@
+﻿=== RUN 20260111_153416 ===
+PY: C:\Program Files\Python310\python.exe
+FILE: .\biblia_gui.py
+
+
+=== EXITCODE: 0 ===
+
