@@ -78,7 +78,140 @@ def launch_python(relpath, cwd=BASE_DIR, extra_args=None):
         raise FileNotFoundError(target)
     subprocess.Popen([sys.executable, target] + extra_args, cwd=cwd)
 
-class BibliaMenu(tk.Tk):
+class BibliaMenu(tk.Tk):
+    def _cfg_path(self):
+        try:
+            base = self.base_dir if hasattr(self, "base_dir") else os.path.dirname(__file__)
+        except Exception:
+            base = os.getcwd()
+        return os.path.join(base, "data", "voice-config.txt")
+
+    def _cfg_load(self):
+        # key=value por línea
+        cfg = {"ui_lang":"es","tts_rate":"170","tts_volume":"1.0","tts_voice":""}
+        try:
+            p = self._cfg_path()
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            if os.path.exists(p):
+                with open(p, "r", encoding="utf-8-sig") as f:
+                    for line in f.read().splitlines():
+                        if (not line) or ("=" not in line):
+                            continue
+                        k, v = line.split("=", 1)
+                        cfg[k.strip()] = v.strip()
+        except Exception as e:
+            try:
+                self.write_safe("[WARN] No pude leer config: " + str(e) + "\n")
+            except Exception:
+                pass
+        return cfg
+
+    def _cfg_save(self, cfg):
+        try:
+            p = self._cfg_path()
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            order = ["ui_lang","tts_rate","tts_volume","tts_voice"]
+            lines = []
+            for k in order:
+                lines.append("{}={}".format(k, cfg.get(k, "")))
+            with open(p, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines) + "\n")
+            try:
+                self.write("Configuración guardada.\n")
+            except Exception:
+                pass
+        except Exception as e:
+            messagebox.showerror("Configuración", str(e))
+
+    def open_settings(self):
+        try:
+            cfg = self._cfg_load()
+
+            win = tk.Toplevel(self)
+            win.title("Configuración")
+            win.geometry("520x420")
+            win.transient(self)
+            win.grab_set()
+
+            frm = ttk.Frame(win, padding=12)
+            frm.pack(fill="both", expand=True)
+
+            ttk.Label(frm, text="Idioma de la interfaz", font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0,6))
+            ui_lang = tk.StringVar(value=cfg.get("ui_lang","es"))
+
+            row1 = ttk.Frame(frm)
+            row1.pack(fill="x", pady=(0,12))
+            ttk.Radiobutton(row1, text="Español", variable=ui_lang, value="es").pack(side="left", padx=(0,12))
+            ttk.Radiobutton(row1, text="English", variable=ui_lang, value="en").pack(side="left")
+
+            ttk.Separator(frm).pack(fill="x", pady=10)
+
+            ttk.Label(frm, text="Texto a voz (TTS)", font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0,6))
+
+            rate = tk.IntVar(value=int(float(cfg.get("tts_rate","170") or "170")))
+            vol  = tk.DoubleVar(value=float(cfg.get("tts_volume","1.0") or "1.0"))
+
+            rrow = ttk.Frame(frm)
+            rrow.pack(fill="x", pady=6)
+            ttk.Label(rrow, text="Velocidad").pack(side="left")
+            ttk.Scale(rrow, from_=90, to=240, variable=rate, orient="horizontal").pack(side="left", fill="x", expand=True, padx=10)
+            ttk.Label(rrow, textvariable=rate, width=4).pack(side="right")
+
+            vrow = ttk.Frame(frm)
+            vrow.pack(fill="x", pady=6)
+            ttk.Label(vrow, text="Volumen").pack(side="left")
+            ttk.Scale(vrow, from_=0.0, to=1.0, variable=vol, orient="horizontal").pack(side="left", fill="x", expand=True, padx=10)
+
+            voice_name = tk.StringVar(value=cfg.get("tts_voice",""))
+            ttk.Label(frm, text="Voz (opcional)").pack(anchor="w", pady=(12,4))
+            ttk.Entry(frm, textvariable=voice_name).pack(fill="x")
+            ttk.Label(frm, text="Tip: deja vacío para voz por defecto").pack(anchor="w", foreground="gray")
+
+            def test_tts():
+                try:
+                    import pyttsx3
+                    engine = pyttsx3.init()
+                    engine.setProperty("rate", int(rate.get()))
+                    engine.setProperty("volume", float(vol.get()))
+                    vn = (voice_name.get() or "").strip()
+                    if vn:
+                        try:
+                            for v in engine.getProperty("voices"):
+                                vid = getattr(v, "id", "")
+                                vname = getattr(v, "name", "")
+                                if vn.lower() in (vid or "").lower() or vn.lower() in (vname or "").lower():
+                                    engine.setProperty("voice", vid)
+                                    break
+                        except Exception:
+                            pass
+                    msg = "Prueba de voz. Biblia Interactiva." if ui_lang.get()=="es" else "Voice test. Bible Interactive."
+                    engine.say(msg)
+                    engine.runAndWait()
+                except Exception as e:
+                    messagebox.showerror("TTS", str(e))
+
+            def save_close():
+                newcfg = {
+                    "ui_lang": ui_lang.get(),
+                    "tts_rate": str(int(rate.get())),
+                    "tts_volume": str(float(vol.get())),
+                    "tts_voice": (voice_name.get() or "").strip(),
+                }
+                self._cfg_save(newcfg)
+                try:
+                    self.ui_lang = ui_lang.get()
+                except Exception:
+                    pass
+                win.destroy()
+
+            bbar = ttk.Frame(frm)
+            bbar.pack(fill="x", pady=(18,0))
+            ttk.Button(bbar, text="Probar voz", command=test_tts).pack(side="left")
+            ttk.Button(bbar, text="Guardar", command=save_close).pack(side="right")
+            ttk.Button(bbar, text="Cancelar", command=win.destroy).pack(side="right", padx=(0,8))
+
+        except Exception as e:
+            messagebox.showerror("Configuración", str(e))
     def open_daily(self):
         # Acción del botón Lectura del día
         try:
@@ -462,6 +595,7 @@ def _run_gui_entrypoint():
 if __name__ == "__main__":
     _run_gui_entrypoint()
 # === END ENTRYPOINT_MINIMAL_FIX ===
+
 
 
 
