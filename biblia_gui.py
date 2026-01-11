@@ -72,16 +72,10 @@ class BibliaMenu(tk.Tk):
         self.bible_version = getattr(self, "bible_version", None) or "RV1909-es"
         try:
             self.bible_idx, self.books_order, self.bible_path = load_bible(self.bible_version)
-            self.write(f"Versión: {self.bible_version}\n")
-            self.write(f"Biblia cargada OK ({len(self.books_order)} libros)\n")
         except Exception as e:
             self.bible_idx = {}
             self.books_order = []
             self.bible_path = ""
-            self.write("[ERROR] No se pudo cargar la Biblia\n")
-            self.write(f"Versión: {self.bible_version}\n")
-            self.write(f"Ruta esperada: {_version_path(self.bible_version)}\n")
-            self.write(f"Detalle: {e}\n")
 
 
         self.title(f"{APP_TITLE} {APP_VERSION}")
@@ -98,6 +92,12 @@ class BibliaMenu(tk.Tk):
         right.pack(side="right", fill="both", expand=True)
 
         self.log = tk.Text(right, height=25, wrap="word")
+            self.write(f"Versión: {self.bible_version}\n")
+            self.write(f"Biblia cargada OK ({len(self.books_order)} libros)\n")
+            self.write("[ERROR] No se pudo cargar la Biblia\n")
+            self.write(f"Versión: {self.bible_version}\n")
+            self.write(f"Ruta esperada: {_version_path(self.bible_version)}\n")
+            self.write(f"Detalle: {e}\n")
         self.log.pack(fill="both", expand=True)
 
         # flush buffer a widget log
@@ -151,16 +151,20 @@ class BibliaMenu(tk.Tk):
         ref = self.settings.get("daily_ref", DEFAULTS["daily_ref"])
         return f"📌 Lectura del día: {ref}"
     def write(self, s):
-        # Robust: si el widget aún no existe, guardamos en buffer
+        # seguro si self.log aún no existe
+        if not hasattr(self, "log") or self.log is None:
+            try:
+                print(s, end="")
+            except Exception:
+                pass
+            return
         try:
-            w = getattr(self, "log", None)
-            if w is None:
-                if not hasattr(self, "_log_buffer"):
-                    self._log_buffer = []
-                self._log_buffer.append(s)
-                return
-            w.insert("end", s)
-            w.see("end")
+            self.log.insert("end", s)
+            self.log.see("end")
         except Exception:
-            pass
+            try:
+                print(s, end="")
+            except Exception:
+                pass
+
 
