@@ -16,3 +16,21 @@ Nuevo documento de texto.txt
 *.pyd
 scripts/Nuevo documento de texto.txt
 config/.env
+# Python
+*.egg-info/
+# Venvs
+.venv/
+.venv_tk/
+# Windows
+$Recycle.Bin/
+Thumbs.db
+Desktop.ini
+# Backups / dumps
+*.bak_*
+*.BAK_*
+*.tmp
+
+# Local stuff
+AI/
+AI_LOCAL/
+
