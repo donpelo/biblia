@@ -49,3 +49,36 @@ $Recycle.Bin/
 *.ps1.BAK*
 Biblia-*.ps1*
 scripts/**/*.BAK*
+# --- Experimentos / IA / entornos ---
+AI/
+AI_LOCAL/
+.venv/
+.venv_*/
+**/venv/
+**/.venv/
+
+# --- Builds / outputs ---
+build/
+dist/
+__pycache__/
+*.pyc
+
+# --- Logs ---
+logs/
+*.log
+*.txt
+
+# --- Backups y parches temporales ---
+*.bak
+*.BAK
+*.bak_*
+*.BAK_*
+*.ps1.BAK*
+*.spec.bak*
+*.ROTO.*
+*.BAK.*
+
+# --- Windows junk ---
+$Recycle.Bin/
+Thumbs.db
+Desktop.ini
