@@ -123,6 +123,21 @@ class BibliaStore:
             return None
 
 class BibliaMenu(tk.Tk):
+    def launch_reader_gui(self, ref: str = ""):
+        try:
+            from core.gui_reader import open_reader_gui
+            version = getattr(self, "bible_version", "RV1909-es")
+            open_reader_gui(
+                version=version,
+                initial_ref=(ref or ""),
+                title="Biblia"
+            )
+        except Exception as e:
+            try:
+                self.write_safe("[ERROR] launch_reader_gui: " + str(e) + "\n")
+            except Exception:
+                pass
+
     def __init__(self):
         super().__init__()
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -169,7 +184,7 @@ class BibliaMenu(tk.Tk):
         self._load_bible_or_warn()
 
         # Botones (todos con métodos reales)
-        btn("📖 Leer Biblia (CLI)", lambda: self.launch_console(r"core\cli_reader.py", "Ejecutando: Lector bíblico (CLI)"))
+        btn("📖 Leer Biblia (GUI)", lambda: self.launch_reader_gui(""))
         btn("📖 Lector bíblico (consola)", lambda: self.launch_console("modules/lector_biblia.py", "Ejecutando: Lector Biblia"))
         btn("🔎 Buscador (consola)",      lambda: self.launch_console("modules/buscador.py", "Ejecutando: Buscador"))
         btn("📅 Planes de lectura (consola)", lambda: self.launch_console("modules/planes.py", "Ejecutando: Planes de lectura"))
@@ -443,9 +458,6 @@ def _run_gui_entrypoint():
             os.environ["BIBLIA_REF"] = ref
         except Exception as e:
             self.write_safe("[ERROR] open_daily: " + str(e) + "\n")
-    # --- END PATCHED METHODS v0.1 ---
 
-if __name__ == "__main__":
-    _run_gui_entrypoint()
 
 
