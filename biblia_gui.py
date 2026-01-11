@@ -1,323 +1,136 @@
-﻿# BOOT_LOG (auto)
-import traceback as _traceback
-import datetime as _dt
-def _boot_log(msg: str):
-    try:
-        import os as _os
-        p = _os.path.join(_os.path.dirname(__file__), "logs")
-        _os.makedirs(p, exist_ok=True)
-        f = _os.path.join(p, "boot.log")
-        with open(f, "a", encoding="utf-8") as _h:
-            _h.write(f"[{_dt.datetime.now().isoformat(timespec='seconds')}] {msg}\n")
-    except Exception:
-        pass
-_boot_log("START biblia_gui.py")
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
+import os, sys, json, subprocess, traceback
 import tkinter as tk
 from tkinter import ttk, messagebox
-import subprocess
-import sys
-from core.bible_reader import BibleReader
-import os
-import json
-from core.bible_loader import load_bible_json, get_verse
 
-
-APP_TITLE   = "Biblia"
+APP_TITLE = "Biblia"
 APP_VERSION = "v1.0"
-BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
 
-def _version_path(version_id: str) -> str:
-    return os.path.join(BASE_DIR, "data", "versions", f"{version_id}.json")
+def _now():
+    import datetime
+    return datetime.datetime.now().isoformat(timespec="seconds")
 
-def load_bible(version_id: str):
-    path = _version_path(version_id)
-    idx, order = load_bible_json(path)
-    return idx, order, path
+def _ensure_dir(p):
+    os.makedirs(p, exist_ok=True)
+    return p
 
-
-SETTINGS_PATH = os.path.join(BASE_DIR, "config", "gui_settings.json")
-
-DEFAULTS = {
-    "bible_version": "RVR1960",
-    "tts_rate": 180,
-    "tts_voice": "",
-    "daily_ref": "Romanos 8:28",
-    "daily_title": "Propósito",
-    "daily_note": ""
-}
-
-def _safe_int(v, fallback):
+def _log_boot(msg):
     try:
-        return int(v)
-    except Exception:
-        return fallback
-
-def load_settings():
-    s = dict(DEFAULTS)
-    try:
-        if os.path.exists(SETTINGS_PATH):
-            with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            if isinstance(data, dict):
-                s.update({k: data.get(k, s[k]) for k in s.keys()})
+        _ensure_dir(os.path.join(os.getcwd(), "logs"))
+        with open(os.path.join(os.getcwd(), "logs", "boot.log"), "a", encoding="utf-8") as f:
+            f.write(f"[{_now()}] {msg}\n")
     except Exception:
         pass
-    s["tts_rate"] = _safe_int(s.get("tts_rate", DEFAULTS["tts_rate"]), DEFAULTS["tts_rate"])
-    return s
 
-def save_settings(s: dict):
-    os.makedirs(os.path.dirname(SETTINGS_PATH), exist_ok=True)
-    with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
-        json.dump(s, f, ensure_ascii=False, indent=2)
+class BibliaStore:
+    def __init__(self, base_dir):
+        self.base_dir = base_dir
+        self.version = "RV1909-es"
+        self.meta_books = None
+        self.verses = None
 
-def launch_python(relpath, cwd=BASE_DIR, extra_args=None):
-    extra_args = extra_args or []
-    target = os.path.join(BASE_DIR, relpath)
-    if not os.path.exists(target):
-        raise FileNotFoundError(target)
-    subprocess.Popen([sys.executable, target] + extra_args, cwd=cwd)
+    def version_path(self, version_name):
+        return os.path.join(self.base_dir, "data", "versions", f"{version_name}.json")
 
-class BibliaMenu(tk.Tk):
-    def _cfg_path(self):
+    def books_meta_path(self):
+        return os.path.join(self.base_dir, "data", "metadata", "books.json")
+
+    def load_books_meta(self):
+        p = self.books_meta_path()
+        if not os.path.exists(p):
+            return None
+        with open(p, "r", encoding="utf-8-sig") as f:
+            return json.load(f)
+
+    def load_version(self, version_name):
+        p = self.version_path(version_name)
+        if not os.path.exists(p):
+            raise FileNotFoundError(p)
+
+        # BOM-safe
+        with open(p, "r", encoding="utf-8-sig") as f:
+            data = json.load(f)
+
+        # Esperado: { metadata:..., verses:[...] }
+        if isinstance(data, dict) and "verses" in data:
+            verses = data.get("verses")
+        else:
+            verses = None
+
+        if not isinstance(verses, list) or not verses:
+            raise ValueError("JSON de Biblia no trae 'verses' como lista con contenido")
+
+        self.version = version_name
+        self.verses = verses
+        self.meta_books = self.load_books_meta()
+        return True
+
+    def find_by_ref(self, book_name=None, book_num=None, chapter=None, verse=None):
+        if not self.verses:
+            return None
+        for v in self.verses:
+            try:
+                if book_num is not None and int(v.get("book")) != int(book_num):
+                    continue
+                if book_name is not None and str(v.get("book_name","")).strip().lower() != str(book_name).strip().lower():
+                    continue
+                if chapter is not None and int(v.get("chapter")) != int(chapter):
+                    continue
+                if verse is not None and int(v.get("verse")) != int(verse):
+                    continue
+                return v
+            except Exception:
+                continue
+        return None
+
+    def pick_daily_ref(self):
+        # Estrategia simple: lee devocional_calendar.json si existe con clave "MM-DD"
+        from datetime import date
+        mmdd = date.today().strftime("%m-%d")
+        cal = os.path.join(self.base_dir, "data", "devocional_calendar.json")
+        if os.path.exists(cal):
+            try:
+                with open(cal, "r", encoding="utf-8-sig") as f:
+                    data = json.load(f)
+                # soporta {"01-11":"Juan 3:16"} u objetos
+                v = data.get(mmdd)
+                if isinstance(v, str) and v.strip():
+                    return v.strip()
+                if isinstance(v, dict):
+                    for key in ("ref","reference","verse","text"):
+                        if isinstance(v.get(key), str) and v.get(key).strip():
+                            return v.get(key).strip()
+            except Exception:
+                pass
+
+        # Fallback determinista: Génesis 1:1 + día del mes como versículo si existe
+        d = date.today().day
+        return f"Genesis 1:{d}"
+
+    def parse_ref(self, ref):
+        # Acepta "Juan 3:16" o "Genesis 1:1"
         try:
-            base = self.base_dir if hasattr(self, "base_dir") else os.path.dirname(__file__)
+            s = ref.strip()
+            if ":" not in s:
+                return None
+            left, vv = s.rsplit(":", 1)
+            vv = int(vv.strip())
+            parts = left.strip().split()
+            ch = int(parts[-1])
+            book = " ".join(parts[:-1])
+            return book, ch, vv
         except Exception:
-            base = os.getcwd()
-        return os.path.join(base, "data", "voice-config.txt")
+            return None
 
-    def _cfg_load(self):
-        # key=value por línea
-        cfg = {"ui_lang":"es","tts_rate":"170","tts_volume":"1.0","tts_voice":""}
-        try:
-            p = self._cfg_path()
-            os.makedirs(os.path.dirname(p), exist_ok=True)
-            if os.path.exists(p):
-                with open(p, "r", encoding="utf-8-sig") as f:
-                    for line in f.read().splitlines():
-                        if (not line) or ("=" not in line):
-                            continue
-                        k, v = line.split("=", 1)
-                        cfg[k.strip()] = v.strip()
-        except Exception as e:
-            try:
-                self.write_safe("[WARN] No pude leer config: " + str(e) + "\n")
-            except Exception:
-                pass
-        return cfg
-
-    def _cfg_save(self, cfg):
-        try:
-            p = self._cfg_path()
-            os.makedirs(os.path.dirname(p), exist_ok=True)
-            order = ["ui_lang","tts_rate","tts_volume","tts_voice"]
-            lines = []
-            for k in order:
-                lines.append("{}={}".format(k, cfg.get(k, "")))
-            with open(p, "w", encoding="utf-8") as f:
-                f.write("\n".join(lines) + "\n")
-            try:
-                self.write("Configuración guardada.\n")
-            except Exception:
-                pass
-        except Exception as e:
-            messagebox.showerror("Configuración", str(e))
-
-    def open_settings(self):
-        try:
-            cfg = self._cfg_load()
-
-            win = tk.Toplevel(self)
-            win.title("Configuración")
-            win.geometry("520x420")
-            win.transient(self)
-            win.grab_set()
-
-            frm = ttk.Frame(win, padding=12)
-            frm.pack(fill="both", expand=True)
-
-            ttk.Label(frm, text="Idioma de la interfaz", font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0,6))
-            ui_lang = tk.StringVar(value=cfg.get("ui_lang","es"))
-
-            row1 = ttk.Frame(frm)
-            row1.pack(fill="x", pady=(0,12))
-            ttk.Radiobutton(row1, text="Español", variable=ui_lang, value="es").pack(side="left", padx=(0,12))
-            ttk.Radiobutton(row1, text="English", variable=ui_lang, value="en").pack(side="left")
-
-            ttk.Separator(frm).pack(fill="x", pady=10)
-
-            ttk.Label(frm, text="Texto a voz (TTS)", font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0,6))
-
-            rate = tk.IntVar(value=int(float(cfg.get("tts_rate","170") or "170")))
-            vol  = tk.DoubleVar(value=float(cfg.get("tts_volume","1.0") or "1.0"))
-
-            rrow = ttk.Frame(frm)
-            rrow.pack(fill="x", pady=6)
-            ttk.Label(rrow, text="Velocidad").pack(side="left")
-            ttk.Scale(rrow, from_=90, to=240, variable=rate, orient="horizontal").pack(side="left", fill="x", expand=True, padx=10)
-            ttk.Label(rrow, textvariable=rate, width=4).pack(side="right")
-
-            vrow = ttk.Frame(frm)
-            vrow.pack(fill="x", pady=6)
-            ttk.Label(vrow, text="Volumen").pack(side="left")
-            ttk.Scale(vrow, from_=0.0, to=1.0, variable=vol, orient="horizontal").pack(side="left", fill="x", expand=True, padx=10)
-
-            voice_name = tk.StringVar(value=cfg.get("tts_voice",""))
-            ttk.Label(frm, text="Voz (opcional)").pack(anchor="w", pady=(12,4))
-            ttk.Entry(frm, textvariable=voice_name).pack(fill="x")
-            ttk.Label(frm, text="Tip: deja vacío para voz por defecto").pack(anchor="w", foreground="gray")
-
-            def test_tts():
-                try:
-                    import pyttsx3
-                    engine = pyttsx3.init()
-                    engine.setProperty("rate", int(rate.get()))
-                    engine.setProperty("volume", float(vol.get()))
-                    vn = (voice_name.get() or "").strip()
-                    if vn:
-                        try:
-                            for v in engine.getProperty("voices"):
-                                vid = getattr(v, "id", "")
-                                vname = getattr(v, "name", "")
-                                if vn.lower() in (vid or "").lower() or vn.lower() in (vname or "").lower():
-                                    engine.setProperty("voice", vid)
-                                    break
-                        except Exception:
-                            pass
-                    msg = "Prueba de voz. Biblia Interactiva." if ui_lang.get()=="es" else "Voice test. Bible Interactive."
-                    engine.say(msg)
-                    engine.runAndWait()
-                except Exception as e:
-                    messagebox.showerror("TTS", str(e))
-
-            def save_close():
-                newcfg = {
-                    "ui_lang": ui_lang.get(),
-                    "tts_rate": str(int(rate.get())),
-                    "tts_volume": str(float(vol.get())),
-                    "tts_voice": (voice_name.get() or "").strip(),
-                }
-                self._cfg_save(newcfg)
-                try:
-                    self.ui_lang = ui_lang.get()
-                except Exception:
-                    pass
-                win.destroy()
-
-            bbar = ttk.Frame(frm)
-            bbar.pack(fill="x", pady=(18,0))
-            ttk.Button(bbar, text="Probar voz", command=test_tts).pack(side="left")
-            ttk.Button(bbar, text="Guardar", command=save_close).pack(side="right")
-            ttk.Button(bbar, text="Cancelar", command=win.destroy).pack(side="right", padx=(0,8))
-
-        except Exception as e:
-            messagebox.showerror("Configuración", str(e))
-    def open_daily(self):
-        # Acción del botón Lectura del día
-        try:
-            from datetime import date
-            mmdd = date.today().strftime('%m-%d')
-            self.write_safe('[INFO] Lectura del día: ' + mmdd + '\\n') if hasattr(self,'write_safe') else None
-
-            # Intento 1: devocional_calendar.json (si existe y tiene clave MM-DD)
-            cal_path = os.path.join(self.base_dir, 'data', 'devocional_calendar.json') if hasattr(self,'base_dir') else os.path.join(os.getcwd(),'data','devocional_calendar.json')
-            ref = None
-            if os.path.exists(cal_path):
-                try:
-                    import json
-                    with open(cal_path, 'r', encoding='utf-8-sig') as f:
-                        cal = json.load(f)
-                    if isinstance(cal, dict):
-                        ref = cal.get(mmdd) or cal.get(mmdd.replace('-','/'))
-                except Exception as e:
-                    self.write_safe('[WARN] No pude leer devocional_calendar.json: ' + str(e) + '\\n') if hasattr(self,'write_safe') else None
-
-            # Fallback: si no hay ref, mostrar mensaje simple
-            if not ref:
-                try:
-                    from tkinter import messagebox
-                    messagebox.showinfo('Lectura del día', 'Aún no hay referencia cargada para hoy.\\nLuego lo conectamos al plan/devocional.')
-                except Exception:
-                    pass
-                return
-
-            # Si hay ref, lo mostramos en el panel de estado si existe
-            msg = 'Lectura del día (' + mmdd + '): ' + str(ref) + '\\n'
-            if hasattr(self, 'write'):
-                self.write(msg)
-            else:
-                try: print(msg, end='')
-                except Exception: pass
-
-        except Exception as e:
-            try:
-                from tkinter import messagebox
-                messagebox.showerror('Lectura del día', str(e))
-            except Exception:
-                pass
-
-    def about(self):
-        try:
-            from tkinter import messagebox
-            ver = getattr(self, 'bible_version', 'N/A')
-            messagebox.showinfo('Acerca de', 'Biblia GUI\\nVersión: {0}\\nRepositorio: donpelo/biblia'.format(ver))
-        except Exception as e:
-            try:
-                print('[WARN] about() failed: {0}'.format(e))
-            except Exception:
-                pass
-
-    def write_safe(self, msg: str):
-        # Fallback seguro: no depende de widgets ya creados
-        try:
-            target = None
-            for name in ("log", "out_text", "main_text", "reader_text"):
-                if hasattr(self, name):
-                    target = getattr(self, name)
-                    break
-            if target is not None:
-                try:
-                    target.insert("end", msg)
-                    return
-                except Exception:
-                    pass
-        except Exception:
-            pass
-        try:
-            print(msg, end="")
-        except Exception:
-            pass
-        def about(self):
-            try:
-                from tkinter import messagebox
-                ver = getattr(self, "bible_version", "N/A")
-                messagebox.showinfo("Acerca de", f"Biblia GUI\nVersión: {ver}\n")
-            except Exception as e:
-                try:
-                    print(f"[WARN] about() failed: {e}")
-                except Exception:
-                    pass
+class BibliaMenu(tk.Tk):
     def __init__(self):
         super().__init__()
-
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
-        self._log_buffer = []  # buffer para mensajes antes de crear el widget log
-        self.settings = load_settings()
-        
-        self.bible_version = getattr(self, "bible_version", None) or "RV1909-es"
-        try:
-            self.bible_idx, self.books_order, self.bible_path = load_bible(self.bible_version)
-            self.write(f"Versión: {self.bible_version}\n")
-            self.write(f"Biblia cargada OK ({len(self.books_order)} libros)\n")
-        except Exception as e:
-            self.bible_idx = {}
-            self.books_order = []
-            self.bible_path = ""
-            self.write("[ERROR] No se pudo cargar la Biblia\n")
-            self.write(f"Versión: {self.bible_version}\n")
-            self.write(f"Ruta esperada: {_version_path(self.bible_version)}\n")
-            self.write(f"Detalle: {e}\n")
+        self.cfg_path = os.path.join(self.base_dir, "data", "config.json")
+        self.cfg = self._cfg_load()
 
+        self.ui_lang = self.cfg.get("ui_lang","es")
+        self.bible_version = self.cfg.get("bible_version","RV1909-es")
 
         self.title(f"{APP_TITLE} {APP_VERSION}")
         self.geometry("1200x720")
@@ -333,106 +146,8 @@ class BibliaMenu(tk.Tk):
         right.pack(side="right", fill="both", expand=True)
 
         self.log = tk.Text(right, height=25, wrap="word")
-
-        # --- BOOTSTRAP (auto) ---
-
-        import os as _os
-
-        if not hasattr(self, 'base_dir'):
-
-            try:
-
-                self.base_dir = _os.path.dirname(__file__)
-
-            except Exception:
-
-                self.base_dir = _os.getcwd()
-
-
-        if not hasattr(self, 'write_safe'):
-
-            def write_safe(msg: str):
-
-                try:
-
-                    print(msg, end='')
-
-                except Exception:
-
-                    pass
-
-            self.write_safe = write_safe
-
-
-        if (not hasattr(self, 'about')) and hasattr(self, '_about'):
-
-            self.about = self._about
-
-        # --- END BOOTSTRAP ---
-
-        self._load_bible_active()
-        if getattr(self, "reader", None) is not None and getattr(self.reader, "books", None):
-            self.reader_book['values'] = (self.reader.books if self.reader else [])
-        else:
-            try:
-                self.reader_book['values'] = []
-            except Exception:
-                pass
         self.log.pack(fill="both", expand=True)
 
-        # --- BOOTSTRAP (auto) ---
-
-        import os as _os
-
-        if not hasattr(self, 'base_dir'):
-
-            try:
-
-                self.base_dir = _os.path.dirname(__file__)
-
-            except Exception:
-
-                self.base_dir = _os.getcwd()
-
-
-        if not hasattr(self, 'write_safe'):
-
-            def write_safe(msg: str):
-
-                try:
-
-                    print(msg, end='')
-
-                except Exception:
-
-                    pass
-
-            self.write_safe = write_safe
-
-
-        if (not hasattr(self, 'about')) and hasattr(self, '_about'):
-
-            self.about = self._about
-
-        # --- END BOOTSTRAP ---
-
-        self._load_bible_active()
-        if getattr(self, "reader", None) is not None and getattr(self.reader, "books", None):
-            self.reader_book['values'] = self.reader.books
-        else:
-            try:
-                self.reader_book['values'] = []
-            except Exception:
-                pass
-        # flush buffer a widget log
-        try:
-            if hasattr(self, "_log_buffer") and self._log_buffer:
-                for _s in self._log_buffer:
-                    self.log.insert("end", _s)
-                self.log.see("end")
-                self._log_buffer = []
-        except Exception:
-            pass
         top = ttk.Frame(root)
         top.place(relx=1.0, rely=0.0, anchor="ne")
         ttk.Button(top, text="Acerca de", command=self.about).pack()
@@ -442,46 +157,35 @@ class BibliaMenu(tk.Tk):
             b.pack(fill="x", pady=6)
             return b
 
-        # Consola (módulos reales en /modules)
+        # Store Biblia
+        self.store = BibliaStore(self.base_dir)
+
+        self.write_safe(f"Ruta: {self.base_dir}\n")
+        self.write_safe(f"Python: {sys.executable}\n")
+        self.write_safe(f"Versión Biblia: {self.bible_version}\n")
+        self.write_safe(f"UI Lang: {self.ui_lang}\n\n")
+
+        # Cargar Biblia al inicio (pero sin matar la app si falla)
+        self._load_bible_or_warn()
+
+        # Botones (todos con métodos reales)
         btn("📖 Lector bíblico (consola)", lambda: self.launch_console("modules/lector_biblia.py", "Ejecutando: Lector Biblia"))
         btn("🔎 Buscador (consola)",      lambda: self.launch_console("modules/buscador.py", "Ejecutando: Buscador"))
         btn("📅 Planes de lectura (consola)", lambda: self.launch_console("modules/planes.py", "Ejecutando: Planes de lectura"))
         btn("📝 Notas y marcadores (consola)", lambda: self.launch_console("modules/notas_marcadores.py", "Ejecutando: Notas y marcadores"))
-        btn("🔊 Audio Biblia TTS (consola)", lambda: self.launch_console("modules/audio_biblia.py", "Ejecutando: Audio Biblia"))
+        btn("🔊 Audio Biblia TTS (consola)", lambda: self.launch_console("modules/audio_biblia.py", "Ejecutando: Audio Biblia TTS"))
 
-        # Lectura del día (NO abre el GUI azul)
-        self.daily_btn = btn(self._daily_label(), self.open_daily)
-
-        # Config del launcher
+        btn(self._daily_label(), self.open_daily)
         btn("⚙️ Configuración", self.open_settings)
 
-        ttk.Separator(left).pack(fill="x", pady=10)
+        btn("🖥️ Abrir BibliaInteractiva (GUI)", lambda: self.launch_gui("gui/main.py", "Ejecutando: BibliaInteractiva GUI"))
 
-        # GUI azul (uno solo)
-        btn("🖥️ Abrir BibliaInteractiva (GUI)", lambda: self.launch_gui("gui/main.py", "Ejecutando: gui/main.py"))
-
-        ttk.Separator(left).pack(fill="x", pady=10)
+        ttk.Separator(left, orient="horizontal").pack(fill="x", pady=8)
         btn("Salir", self.quit)
 
-        self.write(
-            "Listo. Selecciona un módulo.\n"
-            f"Python: {sys.executable}\n"
-            f"Ruta: {BASE_DIR}\n"
-            f"Lectura del día: {self.settings.get('daily_ref','')}\n"
-            "Menú cargado.\n"
-        )
+        self.write_safe("\nMenú cargado.\n")
 
-    def _daily_label(self):
-        ref = self.settings.get("daily_ref", DEFAULTS["daily_ref"])
-        return f"📌 Lectura del día: {ref}"
-    def write(self, s):
-        # seguro si self.log aún no existe
-        if not hasattr(self, "log") or self.log is None:
-            try:
-                print(s, end="")
-            except Exception:
-                pass
-            return
+    def write_safe(self, s):
         try:
             self.log.insert("end", s)
             self.log.see("end")
@@ -491,112 +195,175 @@ class BibliaMenu(tk.Tk):
             except Exception:
                 pass
 
-    def on_reader_go(self):
+    def _cfg_load(self):
         try:
-            book = self.book_var.get()
-            chap = self.chapter_var.get()
-            verse = self.verse_var.get()
-            text = self.reader.get(book, chap, verse)
-
-            if not text:
-                self.write_safe(f"[WARN] No encontrado: {book} {chap}:{verse}\n")
-                return
-
-            out = f"{book} {chap}:{verse}\n\n{text}\n"
-            self.write_safe(out)
-            self.current_text = text
-
-        except Exception as e:
-            self.write_safe(f"[ERROR] Lector: {e}\n")
-
-    def _version_path(self, version_name: str) -> str:
-        # data/versions/<version>.json
-        import os
-        return os.path.join(self.base_dir, "data", "versions", f"{version_name}.json")
-
-    def _load_bible_active(self):
-        """
-        Loader determinista:
-        - carga RVxxxx-es desde data/versions
-        - BOM-safe lo maneja BibleReader (utf-8-sig)
-        """
-        try:
-            vp = self._version_path(self.bible_version)
-            self.reader = BibleReader(vp)
-
-            # popular UI si existen widgets
-            # libros: lista de nombres
-            if hasattr(self, "book_cb") and self.book_cb is not None:
-                try:
-                    self.book_cb["values"] = self.reader.books
-                    if self.reader.books:
-                        self.book_cb.set(self.reader.books[0])
-                except Exception:
-                    pass
-
-            self.write_safe(f"Biblia: OK ({len(self.reader.by_bcv)} versículos)\\n")
-        except Exception as e:
-            self.reader = None
-            self.write_safe(f"[ERROR] Loader Biblia: {e}\\n")
-
-
-
-
-# END_OF_FILE
-_boot_log('EOF_REACHED')
-# === ENTRYPOINT_MINIMAL_FIX ===
-def _ensure_logs_dir():
-    try:
-        import os as _os
-        _p = _os.path.join(_os.path.dirname(__file__), "logs")
-        _os.makedirs(_p, exist_ok=True)
-        return _p
-    except Exception:
-        return None
-
-def _boot_log2(msg: str):
-    try:
-        import os as _os
-        import datetime as _dt
-        _p = _ensure_logs_dir()
-        if not _p:
-            return
-        _f = _os.path.join(_p, "boot.log")
-        with open(_f, "a", encoding="utf-8") as _h:
-            _h.write(f"[{_dt.datetime.now().isoformat(timespec='seconds')}] {msg}\n")
-    except Exception:
-        pass
-
-def _run_gui_entrypoint():
-    _boot_log2("ENTRYPOINT: start")
-    try:
-        cls = globals().get("BibliaMenu", None)
-        _boot_log2("ENTRYPOINT: BibliaMenu=" + ("OK" if cls else "MISSING"))
-        if cls is None:
-            return  # no podemos arrancar si no existe la clase
-
-        app = cls()
-        _boot_log2("ENTRYPOINT: instance created")
-        try:
-            app.mainloop()
-            _boot_log2("ENTRYPOINT: mainloop returned")
-        except Exception as e:
-            _boot_log2("FATAL: mainloop error: " + repr(e))
-            raise
-    except Exception as e:
-        try:
-            import traceback as _tb
-            _boot_log2("FATAL: entrypoint exception: " + repr(e))
-            _boot_log2(_tb.format_exc())
+            if os.path.exists(self.cfg_path):
+                with open(self.cfg_path, "r", encoding="utf-8-sig") as f:
+                    d = json.load(f)
+                    if isinstance(d, dict):
+                        return d
         except Exception:
             pass
-        raise
+        return {}
+
+    def _cfg_save(self, d):
+        try:
+            os.makedirs(os.path.dirname(self.cfg_path), exist_ok=True)
+            with open(self.cfg_path, "w", encoding="utf-8") as f:
+                json.dump(d, f, ensure_ascii=False, indent=2)
+            self.cfg = d
+            return True
+        except Exception as e:
+            self.write_safe(f"[ERROR] No pude guardar config: {e}\n")
+            return False
+
+    def _load_bible_or_warn(self):
+        try:
+            self.store.load_version(self.bible_version)
+            self.write_safe(f"Biblia cargada OK ({len(self.store.verses)} versos)\n")
+        except Exception as e:
+            self.write_safe(f"[ERROR] Loader Biblia: {e}\n")
+            self.write_safe("La app igual abre. Revisa que exista data/versions/<version>.json\n\n")
+
+    def _daily_label(self):
+        return "📆 Lectura del día"
+
+    def about(self):
+        messagebox.showinfo(APP_TITLE, f"{APP_TITLE} {APP_VERSION}\nRepositorio: donpelo/biblia")
+
+    def launch_console(self, relpath, msg):
+        self.write_safe(msg + "\n")
+        target = os.path.join(self.base_dir, relpath)
+        if not os.path.exists(target):
+            self.write_safe(f"[ERROR] No existe: {relpath}\n")
+            messagebox.showerror(APP_TITLE, f"No existe:\n{target}")
+            return
+        # Consola nueva
+        try:
+            subprocess.Popen([sys.executable, target], cwd=self.base_dir, creationflags=subprocess.CREATE_NEW_CONSOLE)
+        except Exception:
+            subprocess.Popen([sys.executable, target], cwd=self.base_dir)
+
+    def launch_gui(self, relpath, msg):
+        self.write_safe(msg + "\n")
+        target = os.path.join(self.base_dir, relpath)
+        if not os.path.exists(target):
+            self.write_safe(f"[ERROR] No existe: {relpath}\n")
+            messagebox.showerror(APP_TITLE, f"No existe:\n{target}")
+            return
+        subprocess.Popen([sys.executable, target], cwd=self.base_dir)
+
+    def open_daily(self):
+        try:
+            if not self.store.verses:
+                self._load_bible_or_warn()
+            ref = self.store.pick_daily_ref()
+            parsed = self.store.parse_ref(ref)
+            self.write_safe("\n" + "="*40 + "\n")
+            self.write_safe(f"Lectura del día: {ref}\n")
+
+            if parsed and self.store.verses:
+                book, ch, vv = parsed
+                hit = self.store.find_by_ref(book_name=book, chapter=ch, verse=vv)
+                if hit:
+                    self.write_safe(f"{hit.get('book_name','')} {hit.get('chapter')}:{hit.get('verse')}\n")
+                    self.write_safe(hit.get("text","") + "\n")
+                else:
+                    self.write_safe("[WARN] No encontré el versículo exacto en la versión cargada.\n")
+            else:
+                self.write_safe("[INFO] Referencia no parseable o Biblia no cargada.\n")
+        except Exception as e:
+            self.write_safe(f"[ERROR] Lectura del día: {e}\n")
+
+    def open_settings(self):
+        win = tk.Toplevel(self)
+        win.title("Configuración")
+        win.geometry("520x420")
+        win.transient(self)
+
+        frm = ttk.Frame(win, padding=14)
+        frm.pack(fill="both", expand=True)
+
+        cfg = dict(self.cfg) if isinstance(self.cfg, dict) else {}
+
+        # UI language
+        ttk.Label(frm, text="Idioma UI").pack(anchor="w")
+        ui_lang = tk.StringVar(value=cfg.get("ui_lang","es"))
+        row = ttk.Frame(frm)
+        row.pack(fill="x", pady=6)
+        ttk.Radiobutton(row, text="Español", variable=ui_lang, value="es").pack(side="left")
+        ttk.Radiobutton(row, text="English", variable=ui_lang, value="en").pack(side="left", padx=12)
+
+        ttk.Separator(frm, orient="horizontal").pack(fill="x", pady=10)
+
+        # TTS settings (base values only)
+        ttk.Label(frm, text="TTS rate (100-250 aprox)").pack(anchor="w")
+        rate = tk.IntVar(value=int(cfg.get("tts_rate","180") or 180))
+        ttk.Scale(frm, from_=80, to=300, variable=rate, orient="horizontal").pack(fill="x", pady=6)
+        ttk.Label(frm, textvariable=rate).pack(anchor="w")
+
+        ttk.Label(frm, text="TTS volume (0.0 - 1.0)").pack(anchor="w", pady=(10,0))
+        vol = tk.DoubleVar(value=float(cfg.get("tts_volume","1.0") or 1.0))
+        ttk.Scale(frm, from_=0.0, to=1.0, variable=vol, orient="horizontal").pack(fill="x", pady=6)
+        ttk.Label(frm, textvariable=vol).pack(anchor="w")
+
+        ttk.Label(frm, text="TTS voice (opcional, texto contiene nombre)").pack(anchor="w", pady=(10,0))
+        voice = tk.StringVar(value=str(cfg.get("tts_voice","") or ""))
+        ttk.Entry(frm, textvariable=voice).pack(fill="x", pady=4)
+
+        def test_tts():
+            try:
+                import pyttsx3
+                engine = pyttsx3.init()
+                engine.setProperty("rate", int(rate.get()))
+                engine.setProperty("volume", float(vol.get()))
+                vn = (voice.get() or "").strip()
+                if vn:
+                    try:
+                        for v in engine.getProperty("voices"):
+                            vid = getattr(v, "id", "") or ""
+                            vname = getattr(v, "name", "") or ""
+                            if vn.lower() in vid.lower() or vn.lower() in vname.lower():
+                                engine.setProperty("voice", vid)
+                                break
+                    except Exception:
+                        pass
+                msg = "Prueba de voz. Biblia Interactiva." if ui_lang.get()=="es" else "Voice test. Bible Interactive."
+                engine.say(msg)
+                engine.runAndWait()
+            except Exception as e:
+                messagebox.showerror("TTS", str(e))
+
+        def save_close():
+            newcfg = dict(cfg)
+            newcfg["ui_lang"] = ui_lang.get()
+            newcfg["tts_rate"] = str(int(rate.get()))
+            newcfg["tts_volume"] = str(float(vol.get()))
+            newcfg["tts_voice"] = (voice.get() or "").strip()
+            newcfg["bible_version"] = self.bible_version
+
+            self._cfg_save(newcfg)
+            self.ui_lang = newcfg["ui_lang"]
+            win.destroy()
+            self.write_safe("[OK] Configuración guardada.\n")
+
+        bbar = ttk.Frame(frm)
+        bbar.pack(fill="x", pady=(16,0))
+        ttk.Button(bbar, text="Probar voz", command=test_tts).pack(side="left")
+        ttk.Button(bbar, text="Cancelar", command=win.destroy).pack(side="right")
+        ttk.Button(bbar, text="Guardar", command=save_close).pack(side="right", padx=(0,8))
+
+def _run_gui_entrypoint():
+    _log_boot("START biblia_gui.py")
+    try:
+        _log_boot("ENTRYPOINT: start")
+        app = BibliaMenu()
+        _log_boot("ENTRYPOINT: BibliaMenu=OK")
+        app.mainloop()
+        _log_boot("EXIT: normal")
+    except Exception as e:
+        _log_boot(f"FATAL: entrypoint exception: {repr(e)}")
+        _log_boot(traceback.format_exc())
 
 if __name__ == "__main__":
     _run_gui_entrypoint()
-# === END ENTRYPOINT_MINIMAL_FIX ===
-
-
-
-
-
