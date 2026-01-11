@@ -169,6 +169,7 @@ class BibliaMenu(tk.Tk):
         self._load_bible_or_warn()
 
         # Botones (todos con métodos reales)
+        btn("📖 Leer Biblia (CLI)", lambda: self.launch_console(r"core\cli_reader.py", "Ejecutando: Lector bíblico (CLI)"))
         btn("📖 Lector bíblico (consola)", lambda: self.launch_console("modules/lector_biblia.py", "Ejecutando: Lector Biblia"))
         btn("🔎 Buscador (consola)",      lambda: self.launch_console("modules/buscador.py", "Ejecutando: Buscador"))
         btn("📅 Planes de lectura (consola)", lambda: self.launch_console("modules/planes.py", "Ejecutando: Planes de lectura"))
@@ -365,5 +366,86 @@ def _run_gui_entrypoint():
         _log_boot(f"FATAL: entrypoint exception: {repr(e)}")
         _log_boot(traceback.format_exc())
 
+    # --- PATCHED METHODS v0.1 ---
+    def write_safe(self, s: str):
+        try:
+            self.write(s)
+        except Exception:
+            try:
+                print(s, end="")
+            except Exception:
+                pass
+
+    def about(self):
+        try:
+            messagebox.showinfo("Biblia", "Biblia Interactiva\nRepo: donpelo/biblia")
+        except Exception:
+            pass
+
+    def _abs(self, relpath: str) -> str:
+        try:
+            base = getattr(self, "base_dir", None) or getattr(self, "BASE_DIR", None)
+        except Exception:
+            base = None
+        if not base:
+            try:
+                base = os.path.dirname(os.path.abspath(__file__))
+            except Exception:
+                base = os.getcwd()
+        return os.path.join(base, relpath)
+
+    def launch_console(self, relpath: str, msg: str = ""):
+        try:
+            if msg:
+                self.write_safe(msg + "\n")
+            target = self._abs(relpath)
+            if not os.path.exists(target):
+                self.write_safe("[ERROR] No existe: " + target + "\n")
+                return
+            # consola nueva
+            CREATE_NEW_CONSOLE = 0x00000010
+            subprocess.Popen([sys.executable, "-u", target], cwd=os.path.dirname(target), creationflags=CREATE_NEW_CONSOLE)
+        except Exception as e:
+            self.write_safe("[ERROR] launch_console: " + str(e) + "\n")
+
+    def launch_gui(self, relpath: str, msg: str = ""):
+        try:
+            if msg:
+                self.write_safe(msg + "\n")
+            target = self._abs(relpath)
+            if not os.path.exists(target):
+                self.write_safe("[ERROR] No existe: " + target + "\n")
+                return
+            subprocess.Popen([sys.executable, target], cwd=os.path.dirname(target))
+        except Exception as e:
+            self.write_safe("[ERROR] launch_gui: " + str(e) + "\n")
+
+    def open_daily(self):
+        # Lectura del día: MM-DD en data/devocional_calendar.json
+        try:
+            from datetime import date
+            mmdd = date.today().strftime("%m-%d")
+
+            cal = self._abs(r"data\devocional_calendar.json")
+            ref = None
+            if os.path.exists(cal):
+                import json
+                with open(cal, "r", encoding="utf-8-sig") as f:
+                    data = json.load(f)
+                ref = data.get(mmdd)
+
+            if not ref:
+                ref = "Génesis 1:1-5"
+
+            self.launch_console(r"core\cli_reader.py", "Lectura del día: " + mmdd + " -> " + ref)
+
+            # pasar la referencia por env var (simple y robusto)
+            os.environ["BIBLIA_REF"] = ref
+        except Exception as e:
+            self.write_safe("[ERROR] open_daily: " + str(e) + "\n")
+    # --- END PATCHED METHODS v0.1 ---
+
 if __name__ == "__main__":
     _run_gui_entrypoint()
+
+
