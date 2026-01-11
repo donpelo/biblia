@@ -187,3 +187,4 @@ class BibliaMenu(tk.Tk):
         except Exception as e:
             self.write_safe(f"[ERROR] Lector: {e}\n")
 
+
