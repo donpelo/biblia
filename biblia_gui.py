@@ -3,7 +3,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import subprocess
 import sys
-import os`nfrom core.bible_reader import BibleReader
+from core.bible_reader import BibleReader
+import os
 import json
 from core.bible_loader import load_bible_json, get_verse
 
@@ -98,7 +99,8 @@ class BibliaMenu(tk.Tk):
         right = ttk.LabelFrame(root, text="Estado", padding=10)
         right.pack(side="right", fill="both", expand=True)
 
-        self.log = tk.Text(right, height=25, wrap="word")
+        self.log = tk.Text(right, height=25, wrap="word")
+
         self._load_bible_active()
         self.log.pack(fill="both", expand=True)
 
