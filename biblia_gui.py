@@ -104,6 +104,8 @@ class BibliaMenu(tk.Tk):
         self._load_bible_active()
         self.log.pack(fill="both", expand=True)
 
+        self._load_bible_active()
+
         # flush buffer a widget log
         try:
             if hasattr(self, "_log_buffer") and self._log_buffer:
@@ -189,4 +191,33 @@ class BibliaMenu(tk.Tk):
         except Exception as e:
             self.write_safe(f"[ERROR] Lector: {e}\n")
 
+    def _version_path(self, version_name: str) -> str:
+        # data/versions/<version>.json
+        import os
+        return os.path.join(self.base_dir, "data", "versions", f"{version_name}.json")
+
+    def _load_bible_active(self):
+        """
+        Loader determinista:
+        - carga RVxxxx-es desde data/versions
+        - BOM-safe lo maneja BibleReader (utf-8-sig)
+        """
+        try:
+            vp = self._version_path(self.bible_version)
+            self.reader = BibleReader(vp)
+
+            # popular UI si existen widgets
+            # libros: lista de nombres
+            if hasattr(self, "book_cb") and self.book_cb is not None:
+                try:
+                    self.book_cb["values"] = self.reader.books
+                    if self.reader.books:
+                        self.book_cb.set(self.reader.books[0])
+                except Exception:
+                    pass
+
+            self.write_safe(f"Biblia: OK ({len(self.reader.by_bcv)} versículos)\\n")
+        except Exception as e:
+            self.reader = None
+            self.write_safe(f"[ERROR] Loader Biblia: {e}\\n")
 
