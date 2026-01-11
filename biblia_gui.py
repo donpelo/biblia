@@ -102,9 +102,11 @@ class BibliaMenu(tk.Tk):
         self.log = tk.Text(right, height=25, wrap="word")
 
         self._load_bible_active()
+        self.reader_book['values'] = self.reader.books
         self.log.pack(fill="both", expand=True)
 
         self._load_bible_active()
+        self.reader_book['values'] = self.reader.books
 
         # flush buffer a widget log
         try:
@@ -220,4 +222,5 @@ class BibliaMenu(tk.Tk):
         except Exception as e:
             self.reader = None
             self.write_safe(f"[ERROR] Loader Biblia: {e}\\n")
+
 
