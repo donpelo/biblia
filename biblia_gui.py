@@ -185,7 +185,7 @@ class BibliaMenu(tk.Tk):
 
         # Botones (todos con métodos reales)
         btn("📖 Leer Biblia (GUI)", lambda: self.launch_reader_gui(""))
-        btn("📖 Lector bíblico (consola)", self.open_reader_gui)
+        btn("📖 Lector bíblico (GUI)", lambda: open_reader_gui(version=getattr(self,"bible_version","RV1909-es"), title="Biblia Interactiva"))
         btn("🔎 Buscador (consola)",      lambda: self.launch_console("modules/buscador.py", "Ejecutando: Buscador"))
         btn("📅 Planes de lectura (consola)", lambda: self.launch_console("modules/planes.py", "Ejecutando: Planes de lectura"))
         btn("📝 Notas y marcadores (consola)", lambda: self.launch_console("modules/notas_marcadores.py", "Ejecutando: Notas y marcadores"))
