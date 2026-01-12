@@ -5,11 +5,33 @@ from typing import Dict, Tuple, List, Any, Optional
 
 VerseIndex = Dict[str, Dict[int, Dict[int, str]]]
 
+# --- API estable (auto) ---
+def _repo_root(base_dir=None):
+    import os
+    if base_dir:
+        return base_dir
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+def version_json_path(version_name, base_dir=None):
+    import os
+    root = _repo_root(base_dir)
+    return os.path.join(root, "data", "versions", f"{version_name}.json")
+
+def load_bible_version(version_name="RV1909-es", base_dir=None):
+    """
+    Carga una versión por nombre, por ejemplo: RV1909-es
+    Retorna el dict JSON listo para BibleReader.
+    """
+    p = version_json_path(version_name, base_dir)
+    return load_bible_json(p)
+# --- END API estable ---
+
 def _to_int(x) -> Optional[int]:
     try:
         return int(str(x).strip())
     except Exception:
         return None
+
 
 def _add_verse(idx: VerseIndex, book: str, chap: int, verse: int, text: str):
     book = str(book).strip()
@@ -21,6 +43,7 @@ def _add_verse(idx: VerseIndex, book: str, chap: int, verse: int, text: str):
     if not text:
         return
     idx.setdefault(book, {}).setdefault(chap, {})[verse] = text
+
 
 def _index_from_book_chapter_dict(data: Any) -> VerseIndex:
     # Formato típico:
@@ -52,6 +75,7 @@ def _index_from_book_chapter_dict(data: Any) -> VerseIndex:
                     else:
                         _add_verse(idx, book, chap, i, str(item))
     return idx
+
 
 def _index_from_books_list(data: Any) -> VerseIndex:
     # Formatos:
@@ -100,6 +124,7 @@ def _index_from_books_list(data: Any) -> VerseIndex:
                         _add_verse(idx, book, ci, ver, str(text))
     return idx
 
+
 def _index_from_verses_flat(data: Any) -> VerseIndex:
     # Formato flat:
     # { "verses":[{"book":"Romanos","chapter":8,"verse":28,"text":"..."}] }
@@ -119,6 +144,7 @@ def _index_from_verses_flat(data: Any) -> VerseIndex:
         if book and chap and ver:
             _add_verse(idx, book, chap, ver, str(text))
     return idx
+
 
 def load_bible_json(path: str) -> Tuple[VerseIndex, List[str]]:
     """
@@ -176,5 +202,7 @@ def load_bible_json(path: str) -> Tuple[VerseIndex, List[str]]:
 
     return idx, ordered_books
 
+
 def get_verse(idx: VerseIndex, book: str, chapter: int, verse: int) -> str:
     return idx.get(book, {}).get(int(chapter), {}).get(int(verse), "")
+
