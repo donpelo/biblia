@@ -197,9 +197,31 @@ class BibliaMenu(tk.Tk):
         btn("🖥️ Abrir BibliaInteractiva (GUI)", lambda: self.launch_gui("gui/main.py", "Ejecutando: BibliaInteractiva GUI"))
 
         ttk.Separator(left, orient="horizontal").pack(fill="x", pady=8)
-        btn("Salir", self.quit)
+        self._btn_exit = btn("Salir", self._on_exit)
+        try:
+            self._btn_exit.bind("<ButtonRelease-1>", self._on_exit)
+        except Exception:
+            pass
 
         self.write_safe("\nMenú cargado.\n")
+
+    def _on_exit(self, *_):
+        try:
+            # intentar cerrar limpio
+            try:
+                self.write_safe('[INFO] Salir solicitado\\n') if hasattr(self,'write_safe') else None
+            except Exception:
+                pass
+            try:
+                self.quit()
+            except Exception:
+                pass
+            try:
+                self.destroy()
+            except Exception:
+                pass
+        except Exception:
+            pass
 
     def write_safe(self, s):
         try:
@@ -621,7 +643,7 @@ def _desktop_safe_run():
     si el GUI quedó abierto pero el entrypoint retornó.
     """
     try:
-        _desktop_safe_run()
+        _run_gui_entrypoint()
     finally:
         try:
             import tkinter as _tk
