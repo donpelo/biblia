@@ -1,6 +1,7 @@
 ﻿# -*- coding: utf-8 -*-
 import os, json, re
 import tkinter as tk
+from core.config_runtime import load_config
 from tkinter import ttk, messagebox
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -93,9 +94,69 @@ def open_reader_gui(version=DEFAULT_VERSION, initial_ref=None, title="Biblia"):
     ref_entry = ttk.Entry(top, textvariable=ref_var, width=40)
     ref_entry.pack(side="left")
 
+    ttk.Button(top, text="🔊 Leer", command=_tts_speak_current).pack(side="left", padx=(10,4))
+    ttk.Button(top, text="⏹ Stop", command=_tts_stop).pack(side="left", padx=(0,10))
     txt = tk.Text(right, wrap="word")
     txt.pack(fill="both", expand=True)
 
+
+    cfg = load_config(BASE)
+
+    tts_state = {"engine": None}
+
+    def _tts_init():
+        try:
+            import pyttsx3
+            eng = pyttsx3.init()
+            try:
+                eng.setProperty("rate", int(str(cfg.get("tts_rate","180")).strip()))
+            except Exception:
+                pass
+            try:
+                eng.setProperty("volume", float(str(cfg.get("tts_volume","1.0")).strip()))
+            except Exception:
+                pass
+            vn = (cfg.get("tts_voice","") or "").strip()
+            if vn:
+                try:
+                    for v in eng.getProperty("voices"):
+                        vid = getattr(v, "id", "") or ""
+                        vname = getattr(v, "name", "") or ""
+                        if vn.lower() in vid.lower() or vn.lower() in vname.lower():
+                            eng.setProperty("voice", vid)
+                            break
+                except Exception:
+                    pass
+            tts_state["engine"] = eng
+            return eng
+        except Exception as e:
+            messagebox.showerror("TTS", str(e))
+            return None
+
+    def _tts_stop():
+        eng = tts_state.get("engine")
+        if eng:
+            try:
+                eng.stop()
+            except Exception:
+                pass
+
+    def _tts_speak_current():
+        s = txt.get("1.0","end").strip()
+        if not s:
+            return
+        eng = tts_state.get("engine") or _tts_init()
+        if not eng:
+            return
+        try:
+            eng.stop()
+        except Exception:
+            pass
+        try:
+            eng.say(s)
+            eng.runAndWait()
+        except Exception as e:
+            messagebox.showerror("TTS", str(e))
     book_var = tk.StringVar(value=(books[0] if books else ""))
     ch_var = tk.IntVar(value=1)
 
@@ -188,3 +249,4 @@ def open_reader_gui(version=DEFAULT_VERSION, initial_ref=None, title="Biblia"):
             _read_selected()
 
     root.mainloop()
+
