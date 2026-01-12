@@ -185,7 +185,7 @@ class BibliaMenu(tk.Tk):
 
         # Botones (todos con métodos reales)
         btn("📖 Leer Biblia (GUI)", lambda: self.launch_reader_gui(""))
-        btn("📖 Lector bíblico (GUI)", lambda: open_reader_gui(version=getattr(self,"bible_version","RV1909-es"), title="Biblia Interactiva"))
+        btn("📖 Lector bíblico (GUI)", self._open_reader_gui_action)
         btn("🔎 Buscador (consola)",      lambda: self.launch_console("modules/buscador.py", "Ejecutando: Buscador"))
         btn("📅 Planes de lectura (consola)", lambda: self.launch_console("modules/planes.py", "Ejecutando: Planes de lectura"))
         btn("📝 Notas y marcadores (consola)", lambda: self.launch_console("modules/notas_marcadores.py", "Ejecutando: Notas y marcadores"))
@@ -291,6 +291,16 @@ class BibliaMenu(tk.Tk):
             return
         subprocess.Popen([sys.executable, target], cwd=self.base_dir)
 
+    def _open_reader_gui_action(self):
+        try:
+            from core.gui_reader import open_reader_gui
+            ver = getattr(self, "bible_version", "RV1909-es")
+            open_reader_gui(version=ver, title="Biblia Interactiva")
+        except Exception as e:
+            try:
+                self.write_safe("[ERROR] Lector GUI: " + str(e) + "\n")
+            except Exception:
+                pass
     def open_daily(self):
 
         """
@@ -613,6 +623,16 @@ def _run_gui_entrypoint():
         except Exception as e:
             self.write_safe("[ERROR] launch_gui: " + str(e) + "\n")
 
+    def _open_reader_gui_action(self):
+        try:
+            from core.gui_reader import open_reader_gui
+            ver = getattr(self, "bible_version", "RV1909-es")
+            open_reader_gui(version=ver, title="Biblia Interactiva")
+        except Exception as e:
+            try:
+                self.write_safe("[ERROR] Lector GUI: " + str(e) + "\n")
+            except Exception:
+                pass
     def open_daily(self):
         # Lectura del día: MM-DD en data/devocional_calendar.json
         try:
@@ -693,5 +713,8 @@ if __name__ == "__main__":
                 _f.write(f"[{datetime.datetime.now().isoformat(timespec='seconds')}] END\n")
         except Exception:
             pass
+
+
+
 
 
