@@ -615,6 +615,28 @@ def _run_gui_entrypoint():
         except Exception as e:
             self.write_safe("[ERROR] open_daily: " + str(e) + "\n")
 
+def _desktop_safe_run():
+    """
+    Garantiza que al ejecutar desde doble click el proceso no termine
+    si el GUI quedó abierto pero el entrypoint retornó.
+    """
+    try:
+        _desktop_safe_run()
+    finally:
+        try:
+            import tkinter as _tk
+            r = getattr(_tk, "_default_root", None)
+            if r is not None:
+                try:
+                    r.update_idletasks()
+                except Exception:
+                    pass
+                try:
+                    r.mainloop()
+                except Exception:
+                    pass
+        except Exception:
+            pass
 if __name__ == "__main__":
     try:
         import os, sys, datetime
@@ -628,7 +650,7 @@ if __name__ == "__main__":
         pass
 
     try:
-        _run_gui_entrypoint()
+        _desktop_safe_run()
     except Exception as e:
         try:
             import os, datetime, traceback
@@ -649,4 +671,5 @@ if __name__ == "__main__":
                 _f.write(f"[{datetime.datetime.now().isoformat(timespec='seconds')}] END\n")
         except Exception:
             pass
+
 
