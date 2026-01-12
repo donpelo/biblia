@@ -270,27 +270,108 @@ class BibliaMenu(tk.Tk):
         subprocess.Popen([sys.executable, target], cwd=self.base_dir)
 
     def open_daily(self):
+
+        """
+
+        Abre la Lectura del día en el Lector GUI.
+
+        Usa data/devocional_calendar.json con clave MM-DD.
+
+        Fallback: Génesis 1 si no hay match.
+
+        """
+
         try:
-            if not self.store.verses:
-                self._load_bible_or_warn()
-            ref = self.store.pick_daily_ref()
-            parsed = self.store.parse_ref(ref)
-            self.write_safe("\n" + "="*40 + "\n")
-            self.write_safe(f"Lectura del día: {ref}\n")
 
-            if parsed and self.store.verses:
-                book, ch, vv = parsed
-                hit = self.store.find_by_ref(book_name=book, chapter=ch, verse=vv)
-                if hit:
-                    self.write_safe(f"{hit.get('book_name','')} {hit.get('chapter')}:{hit.get('verse')}\n")
-                    self.write_safe(hit.get("text","") + "\n")
-                else:
-                    self.write_safe("[WARN] No encontré el versículo exacto en la versión cargada.\n")
-            else:
-                self.write_safe("[INFO] Referencia no parseable o Biblia no cargada.\n")
+            import os, json
+
+            from datetime import date
+
+
+            mmdd = date.today().strftime("%m-%d")
+
+
+            # base_dir robusto
+
+            base = getattr(self, "base_dir", None)
+
+            if not base:
+
+                try:
+
+                    base = os.path.dirname(__file__)
+
+                except Exception:
+
+                    base = os.getcwd()
+
+                self.base_dir = base
+
+
+            cal_path = os.path.join(base, "data", "devocional_calendar.json")
+
+            ref = None
+
+            if os.path.exists(cal_path):
+
+                try:
+
+                    with open(cal_path, "r", encoding="utf-8") as f:
+
+                        cal = json.load(f)
+
+                    ref = cal.get(mmdd) or cal.get(mmdd.lstrip("0"))
+
+                except Exception:
+
+                    ref = None
+
+
+            if not ref:
+
+                ref = "Génesis 1"
+
+
+            ver = getattr(self, "bible_version", None) or "RV1909-es"
+
+
+            from core.gui_reader import open_reader_gui
+
+            open_reader_gui(version=ver, initial_ref=ref, title="Lectura del día")
+
+
+            try:
+
+                if hasattr(self, "write_safe"):
+
+                    self.write_safe(f"[OK] Lectura del día {mmdd}: {ref}\n")
+
+            except Exception:
+
+                pass
+
+
         except Exception as e:
-            self.write_safe(f"[ERROR] Lectura del día: {e}\n")
 
+            try:
+
+                if hasattr(self, "write_safe"):
+
+                    self.write_safe(f"[ERROR] open_daily: {e}\n")
+
+            except Exception:
+
+                pass
+
+            try:
+
+                from tkinter import messagebox
+
+                messagebox.showerror("Lectura del día", str(e))
+
+            except Exception:
+
+                pass
     def open_settings(self):
         win = tk.Toplevel(self)
         win.title("Configuración")
@@ -533,6 +614,7 @@ def _run_gui_entrypoint():
             os.environ["BIBLIA_REF"] = ref
         except Exception as e:
             self.write_safe("[ERROR] open_daily: " + str(e) + "\n")
+
 
 
 
