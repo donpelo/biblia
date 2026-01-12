@@ -1907,26 +1907,26 @@ def _desktop_safe_run():
         except Exception:
             pass
 if __name__ == "__main__":
+    exitcode = 0
     try:
-        import os, sys, datetime
+        import os, sys, datetime, traceback
         _base = os.path.dirname(__file__)
         _logs = os.path.join(_base, "logs")
         os.makedirs(_logs, exist_ok=True)
         _lp = os.path.join(_logs, "desktop_app.log")
+
         with open(_lp, "a", encoding="utf-8") as _f:
             _f.write(f"[{datetime.datetime.now().isoformat(timespec='seconds')}] START cwd={os.getcwd()} argv={sys.argv}\n")
-    except Exception:
-        pass
 
-    try:
         _desktop_safe_run()
+
     except Exception as e:
+        exitcode = 1
         try:
-            import os, datetime, traceback
             _base = os.path.dirname(__file__)
             _lp = os.path.join(_base, "logs", "desktop_app.log")
             with open(_lp, "a", encoding="utf-8") as _f:
-                _f.write(f"[{datetime.datetime.now().isoformat(timespec='seconds')}] EXC {repr(e)}\n")
+                _f.write("[EXC] " + repr(e) + "\n")
                 _f.write(traceback.format_exc() + "\n")
         except Exception:
             pass
@@ -1937,11 +1937,7 @@ if __name__ == "__main__":
             _base = os.path.dirname(__file__)
             _lp = os.path.join(_base, "logs", "desktop_app.log")
             with open(_lp, "a", encoding="utf-8") as _f:
-                _f.write(f"[{datetime.datetime.now().isoformat(timespec='seconds')}] END\n")
+                _f.write(f"[{datetime.datetime.now().isoformat(timespec='seconds')}] END exitcode={exitcode}\n")
         except Exception:
             pass
-
-
-
-
 
