@@ -185,7 +185,7 @@ class BibliaMenu(tk.Tk):
 
         # Botones (todos con métodos reales)
         btn("📖 Leer Biblia (GUI)", lambda: self.launch_reader_gui(""))
-        btn("📖 Lector bíblico (consola)", lambda: self.launch_console("modules/lector_biblia.py", "Ejecutando: Lector Biblia"))
+        btn("📖 Lector bíblico (consola)", self.open_reader_gui)
         btn("🔎 Buscador (consola)",      lambda: self.launch_console("modules/buscador.py", "Ejecutando: Buscador"))
         btn("📅 Planes de lectura (consola)", lambda: self.launch_console("modules/planes.py", "Ejecutando: Planes de lectura"))
         btn("📝 Notas y marcadores (consola)", lambda: self.launch_console("modules/notas_marcadores.py", "Ejecutando: Notas y marcadores"))
@@ -369,6 +369,81 @@ class BibliaMenu(tk.Tk):
         ttk.Button(bbar, text="Cancelar", command=win.destroy).pack(side="right")
         ttk.Button(bbar, text="Guardar", command=save_close).pack(side="right", padx=(0,8))
 
+    # -------------------------
+    # Actions / Launchers (auto)
+    # -------------------------
+    def write_safe(self, msg: str):
+        try:
+            if hasattr(self, "log") and self.log:
+                self.log.insert("end", msg)
+                self.log.see("end")
+            else:
+                print(msg, end="")
+        except Exception:
+            try:
+                print(msg, end="")
+            except Exception:
+                pass
+
+    def _repo_root(self):
+        import os
+        try:
+            return getattr(self, "base_dir", None) or os.path.abspath(os.path.dirname(__file__))
+        except Exception:
+            return os.getcwd()
+
+    def launch_console(self, rel_path: str, title: str = "Biblia"):
+        import os, subprocess, sys
+        root = self._repo_root()
+        script = os.path.join(root, rel_path.replace("/", os.sep))
+        self.write_safe(f"[INFO] {title}: {script}\n")
+        if not os.path.exists(script):
+            self.write_safe(f"[ERROR] No existe: {script}\n")
+            return
+        # abrir una consola nueva (Windows)
+        try:
+            subprocess.Popen([sys.executable, script], cwd=root, creationflags=0x00000010)
+        except Exception as e:
+            self.write_safe(f"[ERROR] launch_console: {e}\n")
+
+    def launch_gui(self, rel_path: str, title: str = "Biblia GUI"):
+        import os, subprocess, sys
+        root = self._repo_root()
+        script = os.path.join(root, rel_path.replace("/", os.sep))
+        self.write_safe(f"[INFO] {title}: {script}\n")
+        if not os.path.exists(script):
+            self.write_safe(f"[ERROR] No existe: {script}\n")
+            return
+        try:
+            subprocess.Popen([sys.executable, script], cwd=root)
+        except Exception as e:
+            self.write_safe(f"[ERROR] launch_gui: {e}\n")
+
+    def open_reader_gui(self):
+        # Abre el lector GUI real (core/gui_reader.py)
+        try:
+            from core.gui_reader import open_reader_gui
+        except Exception as e:
+            self.write_safe(f"[ERROR] No pude importar core.gui_reader: {e}\n")
+            return
+
+        # Resolver versión activa desde config si existe
+        ver = getattr(self, "bible_version", None) or "RV1909-es"
+        try:
+            open_reader_gui(version=ver, initial_ref=None, title="Biblia Interactiva")
+        except Exception as e:
+            self.write_safe(f"[ERROR] open_reader_gui: {e}\n")
+
+    def about(self):
+        try:
+            from tkinter import messagebox
+            messagebox.showinfo(
+                "Acerca de",
+                "Biblia Interactiva\n\nLector GUI + herramientas (buscador, planes, notas, TTS).\nRepositorio: donpelo/biblia"
+            )
+        except Exception:
+            pass
+
 def _run_gui_entrypoint():
     _log_boot("START biblia_gui.py")
     try:
@@ -458,6 +533,7 @@ def _run_gui_entrypoint():
             os.environ["BIBLIA_REF"] = ref
         except Exception as e:
             self.write_safe("[ERROR] open_daily: " + str(e) + "\n")
+
 
 
 
