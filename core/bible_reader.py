@@ -53,13 +53,17 @@ def _read_json_smart(path: str) -> dict:
     return data_utf8
 
 class BibleReader:
-    def __init__(self, base_dir: str, version: str):
+    def __init__(self, base_dir: str=None, version: str="RV1909-es"):
+        import os
+        # Auto-detect repo root si no se pasa base_dir
+        if base_dir is None:
+            base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
         self.base_dir = base_dir
         self.version = version
         self.by_bcv: Dict[Tuple[str, int, int], str] = {}
         self.books: List[str] = []
         self._load()
-
     def _version_path(self) -> str:
         return os.path.join(self.base_dir, "data", "versions", f"{self.version}.json")
 
@@ -90,3 +94,4 @@ class BibleReader:
     def get(self, book: str, chapter: int, verse: int) -> Optional[str]:
         key = (_norm(book), int(chapter), int(verse))
         return self.by_bcv.get(key)
+
