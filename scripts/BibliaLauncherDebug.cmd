@@ -1,14 +1,9 @@
 @echo off
-setlocal
-cd /d C:\biblia
-if not exist logs mkdir logs
-echo START %date% %time% > logs\desktop_debug.log
-"C:\Program Files\Python310\python.exe" -u biblia_gui.py 1>>logs\desktop_debug.log 2>>&1
-echo EXITCODE=%ERRORLEVEL% >> logs\desktop_debug.log
-echo END %date% %time%  >> logs\desktop_debug.log
-echo.
-echo === tail logs\desktop_debug.log ===
-powershell -NoProfile -Command "Get-Content -Tail 80 .\logs\desktop_debug.log"
-echo.
+set ROOT=%~dp0..
+cd /d "C:\biblia"
+echo START %date% %time%>> "C:\biblia\logs\desktop_debug.log"
+py -3.11 "C:\biblia\biblia_gui.py" >> "C:\biblia\logs\desktop_debug.log" 2>&1
+echo EXITCODE=%ERRORLEVEL%>> "C:\biblia\logs\desktop_debug.log"
+echo END %date% %time%>> "C:\biblia\logs\desktop_debug.log"
 pause
-endlocal
+
